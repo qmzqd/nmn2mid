@@ -143,4 +143,4 @@ python nmn2midi.py input.txt -o output.mid
 > ❌ 错误写法：`5 - 3 . ^ 1`
 
 ## 许可协议
-本项目采用 [MIT License](LICENSE)
+本项目采用 [GPL License](LICENSE)
