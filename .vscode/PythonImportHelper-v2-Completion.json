@@ -1,0 +1,191 @@
+[
+    {
+        "label": "mido",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "mido",
+        "description": "mido",
+        "detail": "mido",
+        "documentation": {}
+    },
+    {
+        "label": "MidiFile",
+        "importPath": "mido",
+        "description": "mido",
+        "isExtraImport": true,
+        "detail": "mido",
+        "documentation": {}
+    },
+    {
+        "label": "MidiTrack",
+        "importPath": "mido",
+        "description": "mido",
+        "isExtraImport": true,
+        "detail": "mido",
+        "documentation": {}
+    },
+    {
+        "label": "Message",
+        "importPath": "mido",
+        "description": "mido",
+        "isExtraImport": true,
+        "detail": "mido",
+        "documentation": {}
+    },
+    {
+        "label": "MetaMessage",
+        "importPath": "mido",
+        "description": "mido",
+        "isExtraImport": true,
+        "detail": "mido",
+        "documentation": {}
+    },
+    {
+        "label": "re",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "re",
+        "description": "re",
+        "detail": "re",
+        "documentation": {}
+    },
+    {
+        "label": "argparse",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "argparse",
+        "description": "argparse",
+        "detail": "argparse",
+        "documentation": {}
+    },
+    {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "time",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "time",
+        "description": "time",
+        "detail": "time",
+        "documentation": {}
+    },
+    {
+        "label": "tkinter",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "ttk",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "filedialog",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "messagebox",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "tempfile",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "tempfile",
+        "description": "tempfile",
+        "detail": "tempfile",
+        "documentation": {}
+    },
+    {
+        "label": "parse_input",
+        "importPath": "nmn2midi",
+        "description": "nmn2midi",
+        "isExtraImport": true,
+        "detail": "nmn2midi",
+        "documentation": {}
+    },
+    {
+        "label": "create_midi",
+        "importPath": "nmn2midi",
+        "description": "nmn2midi",
+        "isExtraImport": true,
+        "detail": "nmn2midi",
+        "documentation": {}
+    },
+    {
+        "label": "parse_input",
+        "kind": 2,
+        "importPath": "nmn2midi",
+        "description": "nmn2midi",
+        "peekOfCode": "def parse_input(file_path):\n    \"\"\"解析输入文件并返回元数据、音符列表和警告信息\"\"\"\n    default_values = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }\n    metadata = default_values.copy()",
+        "detail": "nmn2midi",
+        "documentation": {}
+    },
+    {
+        "label": "parse_note",
+        "kind": 2,
+        "importPath": "nmn2midi",
+        "description": "nmn2midi",
+        "peekOfCode": "def parse_note(note_str, key):\n    \"\"\"解析单个音符字符串\"\"\"\n    if note_str.startswith('0'):\n        # 处理休止符\n        match = re.match(r'^0([.-]*)$', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符: {note_str}\")\n        duration = 1.0\n        modifiers = match.group(1)\n        for c in modifiers:",
+        "detail": "nmn2midi",
+        "documentation": {}
+    },
+    {
+        "label": "create_midi",
+        "kind": 2,
+        "importPath": "nmn2midi",
+        "description": "nmn2midi",
+        "peekOfCode": "def create_midi(metadata, notes, output_file):\n    \"\"\"生成MIDI文件\"\"\"\n    mid = MidiFile(ticks_per_beat=metadata['ticks_per_beat'])\n    track = MidiTrack()\n    mid.tracks.append(track)\n    # 添加元数据\n    track.append(MetaMessage('set_tempo', \n                           tempo=metadata['tempo'], \n                           time=0))\n    track.append(MetaMessage('time_signature',",
+        "detail": "nmn2midi",
+        "documentation": {}
+    },
+    {
+        "label": "KEY_TO_BASE",
+        "kind": 5,
+        "importPath": "nmn2midi",
+        "description": "nmn2midi",
+        "peekOfCode": "KEY_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\n# 大调音阶半音偏移量（1-7对应的音程）\nSCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回元数据、音符列表和警告信息\"\"\"\n    default_values = {",
+        "detail": "nmn2midi",
+        "documentation": {}
+    },
+    {
+        "label": "SCALE_DEGREES",
+        "kind": 5,
+        "importPath": "nmn2midi",
+        "description": "nmn2midi",
+        "peekOfCode": "SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回元数据、音符列表和警告信息\"\"\"\n    default_values = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }",
+        "detail": "nmn2midi",
+        "documentation": {}
+    },
+    {
+        "label": "NMNConverterApp",
+        "kind": 6,
+        "importPath": "nmn2midi_gui",
+        "description": "nmn2midi_gui",
+        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.0\")\n        root.geometry(\"1100x750\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.setup_ui()\n        self.setup_bindings()\n    def setup_ui(self):\n        \"\"\"初始化界面组件\"\"\"",
+        "detail": "nmn2midi_gui",
+        "documentation": {}
+    }
+]
