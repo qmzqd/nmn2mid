@@ -139,7 +139,7 @@
         "kind": 2,
         "importPath": "nmn2midi",
         "description": "nmn2midi",
-        "peekOfCode": "def parse_input(file_path):\n    \"\"\"解析输入文件并返回元数据、音符列表和警告信息\"\"\"\n    default_values = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }\n    metadata = default_values.copy()",
+        "peekOfCode": "def parse_input(file_path):\n    \"\"\"解析输入文件并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }\n    track_defaults = global_defaults.copy()",
         "detail": "nmn2midi",
         "documentation": {}
     },
@@ -157,7 +157,7 @@
         "kind": 2,
         "importPath": "nmn2midi",
         "description": "nmn2midi",
-        "peekOfCode": "def create_midi(metadata, notes, output_file):\n    \"\"\"生成MIDI文件\"\"\"\n    mid = MidiFile(ticks_per_beat=metadata['ticks_per_beat'])\n    track = MidiTrack()\n    mid.tracks.append(track)\n    # 添加元数据\n    track.append(MetaMessage('set_tempo', \n                           tempo=metadata['tempo'], \n                           time=0))\n    track.append(MetaMessage('time_signature',",
+        "peekOfCode": "def create_midi(global_metadata, tracks, output_file):\n    \"\"\"生成多轨MIDI文件\"\"\"\n    mid = MidiFile(ticks_per_beat=global_metadata['ticks_per_beat'])\n    for track_data in tracks:\n        track = MidiTrack()\n        mid.tracks.append(track)\n        # 添加元数据\n        track.append(MetaMessage('set_tempo', \n                               tempo=track_data['metadata']['tempo'], \n                               time=0))",
         "detail": "nmn2midi",
         "documentation": {}
     },
@@ -166,7 +166,7 @@
         "kind": 5,
         "importPath": "nmn2midi",
         "description": "nmn2midi",
-        "peekOfCode": "KEY_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\n# 大调音阶半音偏移量（1-7对应的音程）\nSCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回元数据、音符列表和警告信息\"\"\"\n    default_values = {",
+        "peekOfCode": "KEY_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\n# 大调音阶半音偏移量（1-7对应的音程）\nSCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {",
         "detail": "nmn2midi",
         "documentation": {}
     },
@@ -175,7 +175,7 @@
         "kind": 5,
         "importPath": "nmn2midi",
         "description": "nmn2midi",
-        "peekOfCode": "SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回元数据、音符列表和警告信息\"\"\"\n    default_values = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }",
+        "peekOfCode": "SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }",
         "detail": "nmn2midi",
         "documentation": {}
     },

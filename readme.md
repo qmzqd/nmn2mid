@@ -8,6 +8,7 @@
 - **简谱语法支持**：支持音符（1-7）、休止符（0）、升降号（#/b）、八度调整（^/_）、时值控制（-/.）
 - **参数配置**：可设置速度（BPM）、拍号、调号、MIDI乐器
 - **批量处理**：支持通过命令行参数指定输入/输出文件
+- **多轨支持**：可以在输入文件中定义多个轨道，每个轨道可以有不同的乐器、速度等设置
 
 ## 安装
 
@@ -21,21 +22,37 @@ pip install mido
 
 创建`.txt`文件，格式示例：
 ```text
-@tempo=90
-@time_signature=3/4
-@key=G
-@instrument=13
+@global_tempo=90
+@global_time_signature=3/4
+@global_key=G
+@global_instrument=0
+
+[track]
+@tempo=120
+@time_signature=4/4
+@key=C
+@instrument=25
 
 1. 5_ 0 2^#4 3- b7. 
+
+[track]
+@instrument=41
+
+5- 3. ^1 0 2_
 ```
 
-### 元数据配置（可选）
+### 全局元数据配置（可选）
 | 指令                | 默认值     | 说明                  |
 |---------------------|-----------|----------------------|
-| `@tempo=BPM`        | 120 BPM   | 每分钟拍数           |
-| `@time_signature=N/D` | 4/4      | 拍号（分子/分母）     |
-| `@key=KEY`          | C大调     | 调号（支持升降号）    |
-| `@instrument=ID`    | 0 (钢琴)  | MIDI乐器编号（0-127）|
+| `@global_tempo=BPM`        | 120 BPM   | 每分钟拍数           |
+| `@global_time_signature=N/D` | 4/4      | 拍号（分子/分母）     |
+| `@global_key=KEY`          | C大调     | 调号（支持升降号）    |
+| `@global_instrument=ID`    | 0 (钢琴)  | MIDI乐器编号（0-127）|
+
+### 轨道配置
+- 使用`[track]`分隔不同的轨道
+- 每个轨道可以单独设置元数据，格式与全局元数据相同，但以`@`开头
+- 轨道中的元数据会覆盖全局设置
 
 ### 音符语法
 | 符号 | 示例      | 作用                      | 说明                  |
@@ -61,17 +78,16 @@ python nmn2midi.py input.txt -o output.mid
 ```
 
 ### 运行示例
-当输入文件未设置元数据时：
+当输入文件包含多个轨道时：
 ```bash
 正在解析文件: demo.txt
 
 配置提示:
-  * 未设置 tempo，使用默认值：120 BPM
-  * 未设置 time_signature，使用默认值：4/4
-  * 未设置 key，使用默认值：C 大调
-  * 未设置 instrument，使用默认值：0 (钢琴)
+  * 使用全局 tempo：90 BPM
+  * 轨道1使用自定义 tempo：120 BPM
+  * 轨道2使用全局 tempo：90 BPM
 
-解析到 24 个音符/休止符
+解析到 2 个轨道
 开始生成MIDI...
 成功生成: output.mid
 ```
@@ -84,7 +100,7 @@ python nmn2midi.py input.txt -o output.mid
 - 文件路径错误
 
 ## 支持的乐器
-完整列表参考[通用MIDI乐器表](https://www.midi.org/specifications-old/item/gm-level-1-sound-set )，常用乐器包括：
+完整列表参考[通用MIDI乐器表](https://www.midi.org/specifications-old/item/gm-level-1-sound-set)，常用乐器包括：
 
 | ID  | 乐器       | ID  | 乐器       |
 |-----|-----------|-----|-----------|
@@ -110,12 +126,8 @@ python nmn2midi.py input.txt -o output.mid
 
 ## 新增提示系统
 
-- 底部状态栏实时反馈：
-  ![](https://via.placeholder.com/800x30.png?text=状态栏示例)
-  
-- 生成完成提示：
-  ![](https://via.placeholder.com/400x200.png?text=生成成功弹窗)
-
+- 底部状态栏实时反馈
+- 生成完成提示
 - 错误提示包含：
   - 具体错误原因
   - 常见问题排查建议

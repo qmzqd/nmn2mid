@@ -74,7 +74,7 @@ class NMNConverterApp:
         frame.columnconfigure(1, weight=1)
         
     def create_settings_panel(self, parent):
-        """参数设置面板（保持原有实现）"""
+        """参数设置面板"""
         frame = ttk.LabelFrame(parent, text="乐曲参数", padding=10)
         frame.grid(row=1, column=0, sticky="nsew", pady=5)
         
@@ -137,6 +137,7 @@ class NMNConverterApp:
         # 绑定事件更新行号
         self.editor.bind("<KeyRelease>", self.update_line_numbers)
         self.editor.bind("<MouseWheel>", self.update_line_numbers)
+        self.editor.bind("<Configure>", self.update_line_numbers)
         
     def update_line_numbers(self, event=None):
         """更新行号显示"""
