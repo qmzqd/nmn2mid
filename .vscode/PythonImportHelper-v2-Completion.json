@@ -184,7 +184,7 @@
         "kind": 6,
         "importPath": "nmn2midi_gui",
         "description": "nmn2midi_gui",
-        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.0\")\n        root.geometry(\"1100x750\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.setup_ui()\n        self.setup_bindings()\n    def setup_ui(self):\n        \"\"\"初始化界面组件\"\"\"",
+        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.1\")\n        root.geometry(\"1100x750\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.setup_ui()\n        self.setup_bindings()\n    def setup_ui(self):\n        style = ttk.Style()",
         "detail": "nmn2midi_gui",
         "documentation": {}
     }
