@@ -1,4 +1,4 @@
-# File 1: nmn2midi_core.py
+# File 1: nmn2midi_core.py(核心功能)
 import mido
 import re
 import copy

@@ -68,6 +68,24 @@
         "documentation": {}
     },
     {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "time",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "time",
+        "description": "time",
+        "detail": "time",
+        "documentation": {}
+    },
+    {
         "label": "tkinter",
         "kind": 6,
         "isExtraImport": true,
@@ -101,6 +119,14 @@
         "documentation": {}
     },
     {
+        "label": "colorchooser",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
         "label": "ttk",
         "importPath": "tkinter",
         "description": "tkinter",
@@ -125,14 +151,6 @@
         "documentation": {}
     },
     {
-        "label": "Font",
-        "importPath": "tkinter.font",
-        "description": "tkinter.font",
-        "isExtraImport": true,
-        "detail": "tkinter.font",
-        "documentation": {}
-    },
-    {
         "label": "tempfile",
         "kind": 6,
         "isExtraImport": true,
@@ -142,15 +160,6 @@
         "documentation": {}
     },
     {
-        "label": "os",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "os",
-        "description": "os",
-        "detail": "os",
-        "documentation": {}
-    },
-    {
         "label": "parse_input",
         "importPath": "nmn2midi_core",
         "description": "nmn2midi_core",
@@ -180,15 +189,6 @@
         "description": "nmn2midi_core",
         "isExtraImport": true,
         "detail": "nmn2midi_core",
-        "documentation": {}
-    },
-    {
-        "label": "time",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "time",
-        "description": "time",
-        "detail": "time",
         "documentation": {}
     },
     {
@@ -246,11 +246,11 @@
         "documentation": {}
     },
     {
-        "label": "LineNumberCanvas",
+        "label": "EnhancedText",
         "kind": 6,
         "importPath": "nmn2midi_gui",
         "description": "nmn2midi_gui",
-        "peekOfCode": "class LineNumberCanvas(tk.Canvas):\n    \"\"\"带自动刷新的行号面板\"\"\"\n    def __init__(self, master, text_widget, **kwargs):\n        super().__init__(master, **kwargs)\n        self.text_widget = text_widget\n        self.font = Font(family='Consolas', size=12)\n        self.bind('<Configure>', self._redraw)\n        self.text_widget.bind('<KeyRelease>', self._redraw)\n        self.text_widget.bind('<ButtonRelease>', self._redraw)\n    def _redraw(self, event=None):",
+        "peekOfCode": "class EnhancedText(tk.Text):\n    \"\"\"带行号对齐优化的文本编辑器\"\"\"\n    def __init__(self, *args, **kwargs):\n        kwargs.update({\n            'wrap': tk.NONE,\n            'font': ('Consolas', 12),\n            'undo': True,\n            'padx': 15,\n            'pady': 15,\n            'bg': \"white\",",
         "detail": "nmn2midi_gui",
         "documentation": {}
     },
@@ -259,7 +259,7 @@
         "kind": 6,
         "importPath": "nmn2midi_gui",
         "description": "nmn2midi_gui",
-        "peekOfCode": "class SyntaxHighlighter:\n    \"\"\"实时语法高亮\"\"\"\n    def __init__(self, text_widget):\n        self.text = text_widget\n        self.text.tag_configure('meta', foreground='#007BFF')\n        self.text.tag_configure('track', foreground='#28a745', font=('Consolas', 12, 'bold'))\n        self.text.tag_configure('comment', foreground='#6c757d')\n        self.text.tag_configure('error', background='#ffe5e5')\n        self.text.bind('<KeyRelease>', self.highlight)\n    def highlight(self, event=None):",
+        "peekOfCode": "class SyntaxHighlighter:\n    \"\"\"改进的语法高亮系统\"\"\"\n    def __init__(self, text_widget, highlight_color):\n        self.text = text_widget\n        self.highlight_color = highlight_color\n        self.update_tags()\n    def update_tags(self):\n        self.text.tag_configure('meta', foreground=self.highlight_color)\n        self.text.tag_configure('track', foreground='#28a745')\n        self.text.tag_configure('comment', foreground='#6c757d')",
         "detail": "nmn2midi_gui",
         "documentation": {}
     },
@@ -268,8 +268,26 @@
         "kind": 6,
         "importPath": "nmn2midi_gui",
         "description": "nmn2midi_gui",
-        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"简谱转MIDI工具 v2.0\")\n        root.geometry(\"1200x800\")\n        self._setup_ui()\n        self.current_file = None\n    def _setup_ui(self):\n        # 主布局\n        main_frame = ttk.Frame(self.root)",
+        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.0\")\n        root.geometry(\"1200x800\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.current_file = None\n        self.highlight_color = \"#007BFF\"\n        self.highlighter = None\n        self.setup_styles()",
         "detail": "nmn2midi_gui",
+        "documentation": {}
+    },
+    {
+        "label": "EnhancedText",
+        "kind": 6,
+        "importPath": "tempCodeRunnerFile",
+        "description": "tempCodeRunnerFile",
+        "peekOfCode": "class EnhancedText(tk.Text):\n    \"\"\"带行号对齐优化的文本编辑器\"\"\"\n    def __init__(self, *args, **kwargs):\n        super().__init__(*args, **kwargs)\n        self.line_numbers = None\n        self.font = ('Consolas', 12)\n    def sync_scroll(self, *args):\n        if self.line_numbers:\n            self.line_numbers.yview_moveto(args[0])\nclass SyntaxHighlighter:",
+        "detail": "tempCodeRunnerFile",
+        "documentation": {}
+    },
+    {
+        "label": "SyntaxHighlighter",
+        "kind": 6,
+        "importPath": "tempCodeRunnerFile",
+        "description": "tempCodeRunnerFile",
+        "peekOfCode": "class SyntaxHighlighter:\n    \"\"\"改进的语法高亮系统\"\"\"\n    def __init__(self, text_widget):\n        self.text = text_widget\n        self.text.tag_configure('meta', foreground='#007BFF')\n        self.text.tag_configure('track', foreground='#28a745')\n        self.text.tag_configure('comment', foreground='#6c757d')\n        self.text.bind('<KeyRelease>', self.highlight)\n    def highlight(self, event=None):\n        self.clear_tags()",
+        "detail": "tempCodeRunnerFile",
         "documentation": {}
     },
     {
@@ -277,7 +295,7 @@
         "kind": 6,
         "importPath": "tempCodeRunnerFile",
         "description": "tempCodeRunnerFile",
-        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.2\")\n        root.geometry(\"1100x750\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.setup_ui()\n        self.setup_bindings()\n    def setup_ui(self):\n        style = ttk.Style()",
+        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v2.1\")\n        root.geometry(\"1200x800\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.current_file = None\n        self.setup_styles()\n        self.setup_ui()\n        self.setup_bindings()",
         "detail": "tempCodeRunnerFile",
         "documentation": {}
     }
