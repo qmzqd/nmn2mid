@@ -1,5 +1,5 @@
 import os
-import time
+import mido
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, colorchooser
 import tempfile
@@ -148,8 +148,7 @@ class NMNConverterApp:
         self.time_den.grid(row=0, column=5)
 
         ttk.Label(settings_frame, text="调号:").grid(row=0, column=6, padx=5)
-        self.key = ttk.Combobox(settings_frame, values=[
-            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"], width=3)
+        self.key = ttk.Combobox(settings_frame, values=[ "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"], width=3)
         self.key.set("C")
         self.key.grid(row=0, column=7, padx=5)
 
@@ -322,12 +321,27 @@ class NMNConverterApp:
             if not output_path:
                 return
 
+            # 创建临时文件并写入内容
             with tempfile.NamedTemporaryFile("w", delete=False, encoding='utf-8') as f:
                 f.write(content)
                 temp_path = f.name
-                
-            metadata, tracks, warnings = parse_input(temp_path)
-            create_midi(metadata, tracks, output_path)
+            
+            # 解析输入内容
+            global_meta, tracks, warnings = parse_input(temp_path)
+            
+            # 更新全局设置
+            global_meta['tempo'] = mido.bpm2tempo(int(self.tempo.get()))
+            numerator = int(self.time_num.get())
+            denominator = int(self.time_den.get())
+            global_meta['time_signature'] = (numerator, denominator)
+            global_meta['key'] = self.key.get()
+            
+            # 生成MIDI文件
+            create_midi(global_meta, tracks, output_path)
+
+            # 清理临时文件
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
             status_msg = [
                 f"成功生成: {os.path.basename(output_path)}",
@@ -344,9 +358,6 @@ class NMNConverterApp:
         except Exception as e:
             self.status(f"生成错误: {str(e)}", error=True)
             messagebox.showerror("错误", str(e))
-        finally:
-            if 'temp_path' in locals() and os.path.exists(temp_path):
-                os.remove(temp_path)
 
     def get_file_size(self, path):
         size = os.path.getsize(path)

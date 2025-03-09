@@ -175,15 +175,18 @@ def create_track_events(track_data, ticks_per_beat):
     key = track_data['metadata']['key']
     
     for note_str in track_data['notes']:
-        pitch, duration = parse_note(note_str, key)
-        ticks = int(duration * ticks_per_beat)
-        
-        if pitch is None:  # 休止符
-            current_time += ticks
-        else:
-            events.append(('note_on', pitch, current_time))
-            events.append(('note_off', pitch, current_time + ticks))
-            current_time += ticks
+        try:
+            pitch, duration = parse_note(note_str, key)
+            ticks = int(duration * ticks_per_beat)
+
+            if pitch is None:  # 休止符
+                current_time += ticks
+            else:
+                events.append(('note_on', pitch, current_time))
+                events.append(('note_off', pitch, current_time + ticks))
+                current_time += ticks
+        except Exception as e:
+            print(f"Error parsing note: {note_str} with error {str(e)}")
     
     # 排序事件并计算delta时间
     events.sort(key=lambda x: x[2])

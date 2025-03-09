@@ -77,15 +77,6 @@
         "documentation": {}
     },
     {
-        "label": "time",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "time",
-        "description": "time",
-        "detail": "time",
-        "documentation": {}
-    },
-    {
         "label": "tkinter",
         "kind": 6,
         "isExtraImport": true,
@@ -192,6 +183,15 @@
         "documentation": {}
     },
     {
+        "label": "time",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "time",
+        "description": "time",
+        "detail": "time",
+        "documentation": {}
+    },
+    {
         "label": "parse_global_metadata",
         "kind": 2,
         "importPath": "nmn2midi_core",
@@ -232,7 +232,7 @@
         "kind": 2,
         "importPath": "nmn2midi_core",
         "description": "nmn2midi_core",
-        "peekOfCode": "def create_track_events(track_data, ticks_per_beat):\n    \"\"\"生成轨道事件列表\"\"\"\n    events = []\n    current_time = 0\n    key = track_data['metadata']['key']\n    for note_str in track_data['notes']:\n        pitch, duration = parse_note(note_str, key)\n        ticks = int(duration * ticks_per_beat)\n        if pitch is None:  # 休止符\n            current_time += ticks",
+        "peekOfCode": "def create_track_events(track_data, ticks_per_beat):\n    \"\"\"生成轨道事件列表\"\"\"\n    events = []\n    current_time = 0\n    key = track_data['metadata']['key']\n    for note_str in track_data['notes']:\n        try:\n            pitch, duration = parse_note(note_str, key)\n            ticks = int(duration * ticks_per_beat)\n            if pitch is None:  # 休止符",
         "detail": "nmn2midi_core",
         "documentation": {}
     },
