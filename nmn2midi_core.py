@@ -1,27 +1,84 @@
-# File 1: nmn2midi_core.py(核心功能)
+# File 1: nmn2midi_core.py (核心功能)
 import mido
 import re
 import copy
 import argparse
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 
-# 调号到MIDI基音的映射
+# 常量定义
 KEY_TO_BASE = {
     'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,
     'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,
     'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71
 }
-
 SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]  # 大调音阶半音偏移量
+DEFAULT_TICKS_PER_BEAT = 480
+DEFAULT_INSTRUMENT = 0
+DEFAULT_TEMPO = mido.bpm2tempo(120)
+DEFAULT_TIME_SIGNATURE = (4, 4)
+DEFAULT_KEY = 'C'
+
+def parse_global_metadata(line, line_num, global_defaults, warnings):
+    """解析全局元数据行"""
+    key_part = line[1:].split('#')[0].strip()
+    key, value = key_part.split('=', 1)
+    key = key.lower().replace('global_', '')
+    
+    try:
+        if key == 'tempo':
+            global_defaults['tempo'] = mido.bpm2tempo(int(value))
+        elif key == 'time_signature':
+            numerator, denominator = map(int, value.split('/'))
+            global_defaults['time_signature'] = (numerator, denominator)
+        elif key == 'key':
+            if value not in KEY_TO_BASE:
+                raise ValueError(f"无效调号: {value}")
+            global_defaults['key'] = value
+        elif key == 'instrument':
+            program = int(value)
+            if not 0 <= program <= 127:
+                raise ValueError("乐器编号超出范围 (0-127)")
+            global_defaults['instrument'] = program
+        else:
+            warnings.append(f"第{line_num}行: 未知的全局参数 '{key}'")
+    except Exception as e:
+        raise ValueError(f"第{line_num}行全局参数错误: {str(e)}")
+
+def parse_track_metadata(line, line_num, current_track, warnings):
+    """解析轨道元数据行"""
+    key_part = line[1:].split('#')[0].strip()
+    key, value = key_part.split('=', 1)
+    key = key.lower()
+    
+    try:
+        if key == 'tempo':
+            warnings.append(f"第{line_num}行: 轨道tempo参数已被弃用，请使用全局设置")
+        elif key == 'time_signature':
+            warnings.append(f"第{line_num}行: 轨道time_signature参数已被弃用，请使用全局设置")
+        elif key == 'key':
+            if value not in KEY_TO_BASE:
+                raise ValueError(f"无效调号: {value}")
+            current_track['metadata']['key'] = value
+            current_track['provided']['key'] = True
+        elif key == 'instrument':
+            program = int(value)
+            if not 0 <= program <= 127:
+                raise ValueError("乐器编号超出范围 (0-127)")
+            current_track['metadata']['instrument'] = program
+            current_track['provided']['instrument'] = True
+        else:
+            warnings.append(f"第{line_num}行: 未知的轨道参数 '{key}'")
+    except Exception as e:
+        raise ValueError(f"第{line_num}行轨道参数错误: {str(e)}")
 
 def parse_input(content):
     """解析输入内容并返回全局元数据、轨道列表和警告信息"""
     global_defaults = {
-        'tempo': mido.bpm2tempo(120),
-        'time_signature': (4, 4),
-        'key': 'C',
-        'instrument': 0,
-        'ticks_per_beat': 480
+        'tempo': DEFAULT_TEMPO,
+        'time_signature': DEFAULT_TIME_SIGNATURE,
+        'key': DEFAULT_KEY,
+        'instrument': DEFAULT_INSTRUMENT,
+        'ticks_per_beat': DEFAULT_TICKS_PER_BEAT
     }
     tracks = []
     current_track = None
@@ -34,89 +91,31 @@ def parse_input(content):
         if not line or line.startswith('#'):
             continue
         
-        # 处理轨道定义
         if line.startswith('['):
             if line.lower().startswith('[track'):
                 current_track = {
                     'metadata': copy.deepcopy(global_defaults),
-                    'provided': {'tempo': False, 'time_signature': False, 
-                                'key': False, 'instrument': False},
+                    'provided': {'key': False, 'instrument': False},
                     'notes': []
                 }
                 in_global_section = False
                 tracks.append(current_track)
             continue
         
-        # 处理全局元数据
         if in_global_section and line.startswith('@'):
-            try:
-                key_part = line[1:].split('#')[0].strip()  # 忽略注释
-                key, value = key_part.split('=', 1)
-                key = key.lower().replace('global_', '')
-                
-                if key == 'tempo':
-                    global_defaults['tempo'] = mido.bpm2tempo(int(value))
-                elif key == 'time_signature':
-                    numerator, denominator = map(int, value.split('/'))
-                    global_defaults['time_signature'] = (numerator, denominator)
-                elif key == 'key':
-                    if value not in KEY_TO_BASE:
-                        raise ValueError(f"无效调号: {value}")
-                    global_defaults['key'] = value
-                elif key == 'instrument':
-                    program = int(value)
-                    if not 0 <= program <= 127:
-                        raise ValueError("乐器编号超出范围 (0-127)")
-                    global_defaults['instrument'] = program
-                else:
-                    warnings.append(f"第{line_num}行: 未知的全局参数 '{key}'")
-                    
-            except Exception as e:
-                raise ValueError(f"第{line_num}行全局参数错误: {str(e)}")
-        
-        # 处理轨道元数据
-        elif current_track is not None and line.startswith('@'):
-            try:
-                key_part = line[1:].split('#')[0].strip()  # 忽略注释
-                key, value = key_part.split('=', 1)
-                key = key.lower()
-                
-                if key == 'tempo':
-                    current_track['metadata']['tempo'] = mido.bpm2tempo(int(value))
-                    current_track['provided']['tempo'] = True
-                elif key == 'time_signature':
-                    numerator, denominator = map(int, value.split('/'))
-                    current_track['metadata']['time_signature'] = (numerator, denominator)
-                    current_track['provided']['time_signature'] = True
-                elif key == 'key':
-                    if value not in KEY_TO_BASE:
-                        raise ValueError(f"无效调号: {value}")
-                    current_track['metadata']['key'] = value
-                    current_track['provided']['key'] = True
-                elif key == 'instrument':
-                    program = int(value)
-                    if not 0 <= program <= 127:
-                        raise ValueError("乐器编号超出范围 (0-127)")
-                    current_track['metadata']['instrument'] = program
-                    current_track['provided']['instrument'] = True
-                else:
-                    warnings.append(f"第{line_num}行: 未知的轨道参数 '{key}'")
-                    
-            except Exception as e:
-                raise ValueError(f"第{line_num}行轨道参数错误: {str(e)}")
-        
-        # 处理音符行
+            parse_global_metadata(line, line_num, global_defaults, warnings)
         elif current_track is not None:
-            current_track['notes'].extend(line.split())
+            if line.startswith('@'):
+                parse_track_metadata(line, line_num, current_track, warnings)
+            else:
+                current_track['notes'].extend(line.split())
     
     # 生成警告信息
     for track_idx, track in enumerate(tracks, 1):
-        for param in ['tempo', 'time_signature', 'key', 'instrument']:
+        for param in ['key', 'instrument']:
             if not track['provided'][param]:
                 default_value = track['metadata'][param]
                 description = {
-                    'tempo': f"{mido.tempo2bpm(default_value)} BPM",
-                    'time_signature': f"{default_value[0]}/{default_value[1]}",
                     'key': f"{default_value}大调",
                     'instrument': f"{default_value}"
                 }[param]
@@ -169,47 +168,54 @@ def parse_note(note_str, key):
     
     return midi_pitch, duration
 
+def create_track_events(track_data, ticks_per_beat):
+    """生成轨道事件列表"""
+    events = []
+    current_time = 0
+    key = track_data['metadata']['key']
+    
+    for note_str in track_data['notes']:
+        pitch, duration = parse_note(note_str, key)
+        ticks = int(duration * ticks_per_beat)
+        
+        if pitch is None:  # 休止符
+            current_time += ticks
+        else:
+            events.append(('note_on', pitch, current_time))
+            events.append(('note_off', pitch, current_time + ticks))
+            current_time += ticks
+    
+    # 排序事件并计算delta时间
+    events.sort(key=lambda x: x[2])
+    return events
+
 def create_midi(global_meta, tracks, output_path):
     """生成多轨MIDI文件"""
     mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])
     
+    # 创建全局控制轨道
+    global_track = MidiTrack()
+    mid.tracks.append(global_track)
+    global_track.append(MetaMessage('set_tempo', 
+                                  tempo=global_meta['tempo'], 
+                                  time=0))
+    global_track.append(MetaMessage('time_signature',
+                                  numerator=global_meta['time_signature'][0],
+                                  denominator=global_meta['time_signature'][1],
+                                  time=0))
+    
+    # 创建各音乐轨道
     for track_data in tracks:
         track = MidiTrack()
         mid.tracks.append(track)
         
-        # 添加元数据
-        track.append(MetaMessage('set_tempo', 
-                               tempo=track_data['metadata']['tempo'], 
-                               time=0))
-        track.append(MetaMessage('time_signature',
-                               numerator=track_data['metadata']['time_signature'][0],
-                               denominator=track_data['metadata']['time_signature'][1],
-                               time=0))
+        # 设置乐器
         track.append(Message('program_change',
-                           program=track_data['metadata']['instrument'],
-                           time=0))
-
-        events = []
-        current_time = 0
-        key = track_data['metadata']['key']
+                          program=track_data['metadata']['instrument'],
+                          time=0))
         
-        for note_str in track_data['notes']:
-            try:
-                pitch, duration = parse_note(note_str, key)
-            except Exception as e:
-                raise ValueError(f"解析音符失败: {note_str} - {str(e)}")
-            
-            ticks = int(duration * global_meta['ticks_per_beat'])
-            
-            if pitch is None:  # 休止符
-                current_time += ticks
-            else:
-                events.append(('note_on', pitch, current_time))
-                events.append(('note_off', pitch, current_time + ticks))
-                current_time += ticks
-        
-        # 排序并写入事件
-        events.sort(key=lambda x: x[2])
+        # 生成事件并写入轨道
+        events = create_track_events(track_data, global_meta['ticks_per_beat'])
         last_time = 0
         for event in events:
             delta = event[2] - last_time
@@ -217,11 +223,9 @@ def create_midi(global_meta, tracks, output_path):
             last_time = event[2]
         
         # 添加轨道结束标记
-        if current_time > last_time:
-            track.append(MetaMessage('end_of_track', time=current_time - last_time))
-        else:
-            track.append(MetaMessage('end_of_track', time=0))
-    
+        end_time = events[-1][2] if events else 0
+        track.append(MetaMessage('end_of_track', time=max(0, end_time - last_time)))
+
     mid.save(output_path)
 
 def main_cli():

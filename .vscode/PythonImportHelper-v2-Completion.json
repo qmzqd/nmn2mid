@@ -192,11 +192,29 @@
         "documentation": {}
     },
     {
+        "label": "parse_global_metadata",
+        "kind": 2,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "def parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':\n            global_defaults['tempo'] = mido.bpm2tempo(int(value))\n        elif key == 'time_signature':\n            numerator, denominator = map(int, value.split('/'))",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "parse_track_metadata",
+        "kind": 2,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "def parse_track_metadata(line, line_num, current_track, warnings):\n    \"\"\"解析轨道元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower()\n    try:\n        if key == 'tempo':\n            warnings.append(f\"第{line_num}行: 轨道tempo参数已被弃用，请使用全局设置\")\n        elif key == 'time_signature':\n            warnings.append(f\"第{line_num}行: 轨道time_signature参数已被弃用，请使用全局设置\")",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
         "label": "parse_input",
         "kind": 2,
         "importPath": "nmn2midi_core",
         "description": "nmn2midi_core",
-        "peekOfCode": "def parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }\n    tracks = []",
+        "peekOfCode": "def parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': DEFAULT_TEMPO,\n        'time_signature': DEFAULT_TIME_SIGNATURE,\n        'key': DEFAULT_KEY,\n        'instrument': DEFAULT_INSTRUMENT,\n        'ticks_per_beat': DEFAULT_TICKS_PER_BEAT\n    }\n    tracks = []",
         "detail": "nmn2midi_core",
         "documentation": {}
     },
@@ -210,11 +228,20 @@
         "documentation": {}
     },
     {
+        "label": "create_track_events",
+        "kind": 2,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "def create_track_events(track_data, ticks_per_beat):\n    \"\"\"生成轨道事件列表\"\"\"\n    events = []\n    current_time = 0\n    key = track_data['metadata']['key']\n    for note_str in track_data['notes']:\n        pitch, duration = parse_note(note_str, key)\n        ticks = int(duration * ticks_per_beat)\n        if pitch is None:  # 休止符\n            current_time += ticks",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
         "label": "create_midi",
         "kind": 2,
         "importPath": "nmn2midi_core",
         "description": "nmn2midi_core",
-        "peekOfCode": "def create_midi(global_meta, tracks, output_path):\n    \"\"\"生成多轨MIDI文件\"\"\"\n    mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])\n    for track_data in tracks:\n        track = MidiTrack()\n        mid.tracks.append(track)\n        # 添加元数据\n        track.append(MetaMessage('set_tempo', \n                               tempo=track_data['metadata']['tempo'], \n                               time=0))",
+        "peekOfCode": "def create_midi(global_meta, tracks, output_path):\n    \"\"\"生成多轨MIDI文件\"\"\"\n    mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])\n    # 创建全局控制轨道\n    global_track = MidiTrack()\n    mid.tracks.append(global_track)\n    global_track.append(MetaMessage('set_tempo', \n                                  tempo=global_meta['tempo'], \n                                  time=0))\n    global_track.append(MetaMessage('time_signature',",
         "detail": "nmn2midi_core",
         "documentation": {}
     },
@@ -232,7 +259,7 @@
         "kind": 5,
         "importPath": "nmn2midi_core",
         "description": "nmn2midi_core",
-        "peekOfCode": "KEY_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\nSCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]  # 大调音阶半音偏移量\ndef parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),",
+        "peekOfCode": "KEY_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\nSCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]  # 大调音阶半音偏移量\nDEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)",
         "detail": "nmn2midi_core",
         "documentation": {}
     },
@@ -241,7 +268,52 @@
         "kind": 5,
         "importPath": "nmn2midi_core",
         "description": "nmn2midi_core",
-        "peekOfCode": "SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]  # 大调音阶半音偏移量\ndef parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }",
+        "peekOfCode": "SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]  # 大调音阶半音偏移量\nDEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = 'C'\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "DEFAULT_TICKS_PER_BEAT",
+        "kind": 5,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "DEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = 'C'\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "DEFAULT_INSTRUMENT",
+        "kind": 5,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "DEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = 'C'\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "DEFAULT_TEMPO",
+        "kind": 5,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "DEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = 'C'\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "DEFAULT_TIME_SIGNATURE",
+        "kind": 5,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "DEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = 'C'\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':\n            global_defaults['tempo'] = mido.bpm2tempo(int(value))",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "DEFAULT_KEY",
+        "kind": 5,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "DEFAULT_KEY = 'C'\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':\n            global_defaults['tempo'] = mido.bpm2tempo(int(value))\n        elif key == 'time_signature':",
         "detail": "nmn2midi_core",
         "documentation": {}
     },
