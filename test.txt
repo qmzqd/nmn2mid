@@ -1,6 +1,12 @@
-@tempo=120
-@time_signature=4/4
-@key=C
+@global_tempo=90
+@global_time_signature=3/4
+@global_key=C
+@global_instrument=0
+
+[track]
 @instrument=0
-1 1 5 5 6 6 5- 4 4 3 3 2 2 1
-5 5 4 4 3 3 2- 5 5 4 4 3 3 2
+
+1. 1. 5- 5- 6- 6- 5-
+4. 4. 3- 3- 2- 2- 1-
+1. 1. 5- 5- 6- 6- 5-
+4. 4. 3- 3- 2- 2- 1-

@@ -50,30 +50,21 @@
         "documentation": {}
     },
     {
+        "label": "copy",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "copy",
+        "description": "copy",
+        "detail": "copy",
+        "documentation": {}
+    },
+    {
         "label": "argparse",
         "kind": 6,
         "isExtraImport": true,
         "importPath": "argparse",
         "description": "argparse",
         "detail": "argparse",
-        "documentation": {}
-    },
-    {
-        "label": "os",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "os",
-        "description": "os",
-        "detail": "os",
-        "documentation": {}
-    },
-    {
-        "label": "time",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "time",
-        "description": "time",
-        "detail": "time",
         "documentation": {}
     },
     {
@@ -110,6 +101,38 @@
         "documentation": {}
     },
     {
+        "label": "ttk",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "filedialog",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "messagebox",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "Font",
+        "importPath": "tkinter.font",
+        "description": "tkinter.font",
+        "isExtraImport": true,
+        "detail": "tkinter.font",
+        "documentation": {}
+    },
+    {
         "label": "tempfile",
         "kind": 6,
         "isExtraImport": true,
@@ -119,64 +142,125 @@
         "documentation": {}
     },
     {
-        "label": "parse_input",
-        "importPath": "nmn2midi",
-        "description": "nmn2midi",
+        "label": "os",
+        "kind": 6,
         "isExtraImport": true,
-        "detail": "nmn2midi",
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "parse_input",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "isExtraImport": true,
+        "detail": "nmn2midi_core",
         "documentation": {}
     },
     {
         "label": "create_midi",
-        "importPath": "nmn2midi",
-        "description": "nmn2midi",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
         "isExtraImport": true,
-        "detail": "nmn2midi",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "parse_input",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "isExtraImport": true,
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "create_midi",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "isExtraImport": true,
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "time",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "time",
+        "description": "time",
+        "detail": "time",
         "documentation": {}
     },
     {
         "label": "parse_input",
         "kind": 2,
-        "importPath": "nmn2midi",
-        "description": "nmn2midi",
-        "peekOfCode": "def parse_input(file_path):\n    \"\"\"解析输入文件并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }\n    track_defaults = global_defaults.copy()",
-        "detail": "nmn2midi",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "def parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }\n    tracks = []",
+        "detail": "nmn2midi_core",
         "documentation": {}
     },
     {
         "label": "parse_note",
         "kind": 2,
-        "importPath": "nmn2midi",
-        "description": "nmn2midi",
-        "peekOfCode": "def parse_note(note_str, key):\n    \"\"\"解析单个音符字符串\"\"\"\n    if note_str.startswith('0'):\n        # 处理休止符\n        match = re.match(r'^0([.-]*)$', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符: {note_str}\")\n        duration = 1.0\n        modifiers = match.group(1)\n        for c in modifiers:",
-        "detail": "nmn2midi",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "def parse_note(note_str, key):\n    \"\"\"解析单个音符字符串\"\"\"\n    if note_str.startswith('0'):\n        match = re.fullmatch(r'0([.-]*)', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符格式: {note_str}\")\n        duration = 1.0\n        for c in match.group(1):\n            duration *= 2 if c == '-' else 1.5\n        return None, duration",
+        "detail": "nmn2midi_core",
         "documentation": {}
     },
     {
         "label": "create_midi",
         "kind": 2,
-        "importPath": "nmn2midi",
-        "description": "nmn2midi",
-        "peekOfCode": "def create_midi(global_metadata, tracks, output_file):\n    \"\"\"生成多轨MIDI文件\"\"\"\n    mid = MidiFile(ticks_per_beat=global_metadata['ticks_per_beat'])\n    for track_data in tracks:\n        track = MidiTrack()\n        mid.tracks.append(track)\n        # 添加元数据\n        track.append(MetaMessage('set_tempo', \n                               tempo=track_data['metadata']['tempo'], \n                               time=0))",
-        "detail": "nmn2midi",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "def create_midi(global_meta, tracks, output_path):\n    \"\"\"生成多轨MIDI文件\"\"\"\n    mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])\n    for track_data in tracks:\n        track = MidiTrack()\n        mid.tracks.append(track)\n        # 添加元数据\n        track.append(MetaMessage('set_tempo', \n                               tempo=track_data['metadata']['tempo'], \n                               time=0))",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "main_cli",
+        "kind": 2,
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "def main_cli():\n    \"\"\"命令行入口\"\"\"\n    parser = argparse.ArgumentParser(\n        description='简谱转MIDI命令行版 v1.0',\n        epilog='示例: python nmn2midi_core.py input.txt -o output.mid')\n    parser.add_argument('input', help='输入文本文件路径')\n    parser.add_argument('-o', '--output', default='output.mid', help='输出MIDI文件路径')\n    args = parser.parse_args()\n    try:\n        with open(args.input, 'r', encoding='utf-8') as f:",
+        "detail": "nmn2midi_core",
         "documentation": {}
     },
     {
         "label": "KEY_TO_BASE",
         "kind": 5,
-        "importPath": "nmn2midi",
-        "description": "nmn2midi",
-        "peekOfCode": "KEY_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\n# 大调音阶半音偏移量（1-7对应的音程）\nSCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {",
-        "detail": "nmn2midi",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "KEY_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\nSCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]  # 大调音阶半音偏移量\ndef parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),",
+        "detail": "nmn2midi_core",
         "documentation": {}
     },
     {
         "label": "SCALE_DEGREES",
         "kind": 5,
-        "importPath": "nmn2midi",
-        "description": "nmn2midi",
-        "peekOfCode": "SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]\ndef parse_input(file_path):\n    \"\"\"解析输入文件并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }",
-        "detail": "nmn2midi",
+        "importPath": "nmn2midi_core",
+        "description": "nmn2midi_core",
+        "peekOfCode": "SCALE_DEGREES = [0, 2, 4, 5, 7, 9, 11]  # 大调音阶半音偏移量\ndef parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': mido.bpm2tempo(120),\n        'time_signature': (4, 4),\n        'key': 'C',\n        'instrument': 0,\n        'ticks_per_beat': 480\n    }",
+        "detail": "nmn2midi_core",
+        "documentation": {}
+    },
+    {
+        "label": "LineNumberCanvas",
+        "kind": 6,
+        "importPath": "nmn2midi_gui",
+        "description": "nmn2midi_gui",
+        "peekOfCode": "class LineNumberCanvas(tk.Canvas):\n    \"\"\"带自动刷新的行号面板\"\"\"\n    def __init__(self, master, text_widget, **kwargs):\n        super().__init__(master, **kwargs)\n        self.text_widget = text_widget\n        self.font = Font(family='Consolas', size=12)\n        self.bind('<Configure>', self._redraw)\n        self.text_widget.bind('<KeyRelease>', self._redraw)\n        self.text_widget.bind('<ButtonRelease>', self._redraw)\n    def _redraw(self, event=None):",
+        "detail": "nmn2midi_gui",
+        "documentation": {}
+    },
+    {
+        "label": "SyntaxHighlighter",
+        "kind": 6,
+        "importPath": "nmn2midi_gui",
+        "description": "nmn2midi_gui",
+        "peekOfCode": "class SyntaxHighlighter:\n    \"\"\"实时语法高亮\"\"\"\n    def __init__(self, text_widget):\n        self.text = text_widget\n        self.text.tag_configure('meta', foreground='#007BFF')\n        self.text.tag_configure('track', foreground='#28a745', font=('Consolas', 12, 'bold'))\n        self.text.tag_configure('comment', foreground='#6c757d')\n        self.text.tag_configure('error', background='#ffe5e5')\n        self.text.bind('<KeyRelease>', self.highlight)\n    def highlight(self, event=None):",
+        "detail": "nmn2midi_gui",
         "documentation": {}
     },
     {
@@ -184,8 +268,17 @@
         "kind": 6,
         "importPath": "nmn2midi_gui",
         "description": "nmn2midi_gui",
-        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.1\")\n        root.geometry(\"1100x750\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.setup_ui()\n        self.setup_bindings()\n    def setup_ui(self):\n        style = ttk.Style()",
+        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"简谱转MIDI工具 v2.0\")\n        root.geometry(\"1200x800\")\n        self._setup_ui()\n        self.current_file = None\n    def _setup_ui(self):\n        # 主布局\n        main_frame = ttk.Frame(self.root)",
         "detail": "nmn2midi_gui",
+        "documentation": {}
+    },
+    {
+        "label": "NMNConverterApp",
+        "kind": 6,
+        "importPath": "tempCodeRunnerFile",
+        "description": "tempCodeRunnerFile",
+        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.2\")\n        root.geometry(\"1100x750\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.setup_ui()\n        self.setup_bindings()\n    def setup_ui(self):\n        style = ttk.Style()",
+        "detail": "tempCodeRunnerFile",
         "documentation": {}
     }
 ]

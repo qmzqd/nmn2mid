@@ -1,275 +1,247 @@
-import os
-import time
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from tkinter.font import Font
 import tempfile
-from nmn2midi import parse_input, create_midi
+import os
+from nmn2midi_core import parse_input, create_midi
+
+class LineNumberCanvas(tk.Canvas):
+    """带自动刷新的行号面板"""
+    def __init__(self, master, text_widget, **kwargs):
+        super().__init__(master, **kwargs)
+        self.text_widget = text_widget
+        self.font = Font(family='Consolas', size=12)
+        self.bind('<Configure>', self._redraw)
+        self.text_widget.bind('<KeyRelease>', self._redraw)
+        self.text_widget.bind('<ButtonRelease>', self._redraw)
+    
+    def _redraw(self, event=None):
+        self.delete('all')
+        width = self.winfo_width()
+        i = self.text_widget.index('@0,0')
+        while True:
+            dline = self.text_widget.dlineinfo(i)
+            if dline is None: break
+            y = dline[1]
+            line_num = str(i).split('.')[0]
+            self.create_text(
+                width-5, y,
+                anchor='ne',
+                text=line_num,
+                font=self.font,
+                fill='#666'
+            )
+            i = self.text_widget.index(f'{i}+1line')
+
+class SyntaxHighlighter:
+    """实时语法高亮"""
+    def __init__(self, text_widget):
+        self.text = text_widget
+        self.text.tag_configure('meta', foreground='#007BFF')
+        self.text.tag_configure('track', foreground='#28a745', font=('Consolas', 12, 'bold'))
+        self.text.tag_configure('comment', foreground='#6c757d')
+        self.text.tag_configure('error', background='#ffe5e5')
+        self.text.bind('<KeyRelease>', self.highlight)
+    
+    def highlight(self, event=None):
+        self._clear_tags()
+        self._highlight_pattern(r'@\w+', 'meta')
+        self._highlight_pattern(r'\[track\]', 'track')
+        self._highlight_pattern(r'#.*', 'comment')
+    
+    def _highlight_pattern(self, pattern, tag):
+        start = '1.0'
+        while True:
+            pos = self.text.search(pattern, start, stopindex='end', regexp=True)
+            if not pos: break
+            end = f"{pos}+{len(self.text.get(pos, f'{pos} lineend'))}c"
+            self.text.tag_add(tag, pos, end)
+            start = end
+    
+    def _clear_tags(self):
+        for tag in ['meta', 'track', 'comment', 'error']:
+            self.text.tag_remove(tag, '1.0', 'end')
 
 class NMNConverterApp:
     def __init__(self, root):
         self.root = root
-        root.title("NMN2MIDI Converter v1.1")
-        root.geometry("1100x750")
-        self.default_output_dir = os.path.join(os.getcwd(), "outputs")
-        self.setup_ui()
-        self.setup_bindings()
+        root.title("简谱转MIDI工具 v2.0")
+        root.geometry("1200x800")
+        self._setup_ui()
+        self.current_file = None
+    
+    def _setup_ui(self):
+        # 主布局
+        main_frame = ttk.Frame(self.root)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-    def setup_ui(self):
-        style = ttk.Style()
-        style.configure("TLabel", font=('Segoe UI', 10))
-        style.configure("TButton", font=('Segoe UI', 10))
-        style.configure("Status.TLabel", font=('Segoe UI', 9), foreground="#666")
+        # 工具栏
+        toolbar = ttk.Frame(main_frame)
+        toolbar.pack(fill=tk.X, pady=5)
         
-        main_frame = ttk.Frame(self.root, padding=15)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        ttk.Button(toolbar, text="打开", command=self._open_file).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="保存", command=self._save_file).pack(side=tk.LEFT, padx=5)
+        ttk.Button(toolbar, text="生成MIDI", command=self._generate).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="退出", command=self.root.quit).pack(side=tk.RIGHT)
         
-        self.create_file_controls(main_frame)
-        self.create_settings_panel(main_frame)
-        self.create_editor(main_frame)
+        # 编辑区域
+        editor_frame = ttk.Frame(main_frame)
+        editor_frame.pack(fill=tk.BOTH, expand=True)
         
-        self.status_bar = ttk.Label(self.root, style="Status.TLabel", anchor=tk.W)
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=5)
-        
-        self.tip_label = ttk.Label(
-            self.root,
-            text="💡 提示：拖放文件导入 | Ctrl+S 快速生成 | Alt+↑/↓ 跳转行号",
-            style="Status.TLabel"
+        # 文本编辑器
+        self.editor = tk.Text(
+            editor_frame,
+            wrap=tk.NONE,
+            font=('Consolas', 12),
+            undo=True,
+            padx=10,
+            pady=10
         )
-        self.tip_label.pack(side=tk.BOTTOM, fill=tk.X, padx=15)
-        
-    def create_file_controls(self, parent):
-        frame = ttk.LabelFrame(parent, text="文件操作", padding=10)
-        frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=5)
-        
-        ttk.Label(frame, text="输入文件:").grid(row=0, column=0, sticky="w")
-        self.input_path = ttk.Entry(frame, width=60)
-        self.input_path.grid(row=0, column=1, padx=5, sticky="ew")
-        ttk.Button(frame, text="浏览", command=self.browse_input, width=8).grid(row=0, column=2)
-        
-        ttk.Label(frame, text="输出文件:").grid(row=1, column=0, sticky="w")
-        self.output_path = ttk.Entry(frame, width=60)
-        self.output_path.grid(row=1, column=1, padx=5, sticky="ew")
-        ttk.Button(frame, text="浏览", command=self.browse_output, width=8).grid(row=1, column=2)
-        
-        btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=2, column=0, columnspan=3, pady=10)
-        ttk.Button(btn_frame, text="🎵 生成MIDI", command=self.generate, width=15).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="🧹 清空", command=self.clear_editor, width=8).pack(side=tk.LEFT)
-        
-        frame.columnconfigure(1, weight=1)
-        
-    def create_settings_panel(self, parent):
-        frame = ttk.LabelFrame(parent, text="全局参数", padding=10)
-        frame.grid(row=1, column=0, sticky="nsew", pady=5)
-        
-        ttk.Label(frame, text="速度 (BPM):").grid(row=0, column=0, sticky="w")
-        self.tempo = ttk.Spinbox(frame, from_=20, to=300, width=5)
-        self.tempo.set(120)
-        self.tempo.grid(row=0, column=1, padx=5)
-        
-        ttk.Label(frame, text="拍号:").grid(row=0, column=2, sticky="w", padx=10)
-        self.time_num = ttk.Combobox(frame, values=["2","3","4","5","6","7"], width=3)
-        self.time_num.set("4")
-        self.time_num.grid(row=0, column=3)
-        ttk.Label(frame, text="/").grid(row=0, column=4)
-        self.time_den = ttk.Combobox(frame, values=["2","4","8","16"], width=3)
-        self.time_den.set("4")
-        self.time_den.grid(row=0, column=5)
-        
-        ttk.Label(frame, text="调号:").grid(row=0, column=6, sticky="w", padx=10)
-        self.key = ttk.Combobox(frame, values=[
-            "C", "C#", "D", "D#", "E", "F", 
-            "F#", "G", "G#", "A", "A#", "B"
-        ], width=3)
-        self.key.set("C")
-        self.key.grid(row=0, column=7)
-        
-    def create_editor(self, parent):
-        frame = ttk.LabelFrame(parent, text="乐谱编辑器", padding=10)
-        frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=5)
-        
-        self.line_numbers = tk.Text(frame, width=4, padx=4, takefocus=0, border=0,
-                                   background="#f0f0f0", state="disabled", font=('Consolas', 12))
-        self.editor = tk.Text(frame, wrap=tk.NONE, font=('Consolas', 12), 
-                            undo=True, padx=10, pady=10)
-        
-        # 同步滚动条
-        vsb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=self.dual_scroll)
-        hsb = ttk.Scrollbar(frame, orient=tk.HORIZONTAL, command=self.editor.xview)
-        
-        self.editor.configure(
-            yscrollcommand=lambda *args: self.on_text_scroll(*args, vsb),
-            xscrollcommand=hsb.set
-        )
-        
-        # 布局
-        self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
         self.editor.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # 行号面板
+        self.line_numbers = LineNumberCanvas(
+            editor_frame, 
+            text_widget=self.editor,
+            width=60,
+            bg='#f8f9fa',
+            highlightthickness=0
+        )
+        self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
+        
+        # 语法高亮
+        self.highlighter = SyntaxHighlighter(self.editor)
+        
+        # 滚动条
+        vsb = ttk.Scrollbar(editor_frame, command=self._on_scroll)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
-        hsb.pack(side=tk.BOTTOM, fill=tk.X)
+        self.editor.configure(yscrollcommand=vsb.set)
+        
+        # 状态栏
+        self.status = ttk.Label(
+            self.root,
+            relief=tk.SUNKEN,
+            anchor=tk.W,
+            font=('Consolas', 10)
+        )
+        self.status.pack(side=tk.BOTTOM, fill=tk.X)
         
         # 绑定事件
-        self.editor.bind("<Key>", self.update_line_numbers)
-        self.editor.bind("<MouseWheel>", self.update_line_numbers)
-        self.editor.bind("<ButtonRelease-1>", self.update_line_numbers)
-        self.editor.bind("<Configure>", self.update_line_numbers)
-        
-    def dual_scroll(self, *args):
-        """同步文本区域和行号区域的滚动"""
-        self.line_numbers.yview_moveto(args[0])
+        self.editor.bind('<Control-o>', lambda e: self._open_file())
+        self.editor.bind('<Control-s>', lambda e: self._save_file())
+        self.editor.bind('<Control-g>', lambda e: self._generate())
+    
+    def _on_scroll(self, *args):
         self.editor.yview(*args)
-        
-    def on_text_scroll(self, first, last, scrollbar):
-        """处理垂直滚动事件"""
-        self.line_numbers.yview_moveto(first)
-        scrollbar.set(first, last)
-        
-    def update_line_numbers(self, event=None):
-        """精确更新行号显示"""
-        lines = self.editor.get(1.0, "end-1c").split("\n")
-        line_nums = "\n".join(f"{i+1:>3}" for i in range(len(lines)))
-        
-        # 保持行号对齐
-        self.line_numbers.config(state="normal")
-        self.line_numbers.delete(1.0, tk.END)
-        self.line_numbers.insert(1.0, line_nums)
-        self.line_numbers.config(state="disabled")
-        
-        # 同步行号区域宽度
-        max_width = len(f"{len(lines)+1:>3}") + 1
-        self.line_numbers.config(width=max_width)
-        
-        # 同步水平滚动
-        self.line_numbers.xview_moveto(self.editor.xview()[0])
-        
-    def get_output_path(self):
-        user_path = self.output_path.get().strip()
-        if user_path:
-            return user_path
-            
-        if not os.path.exists(self.default_output_dir):
-            os.makedirs(self.default_output_dir)
-            
-        base_name = "untitled"
-        if self.input_path.get().strip():
-            input_file = self.input_path.get().strip()
-            base_name = os.path.splitext(os.path.basename(input_file))[0]
-            base_name = "".join(c for c in base_name if c.isalnum() or c in (' ', '_'))
-            
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        return os.path.join(
-            self.default_output_dir,
-            f"{base_name}_{timestamp}.mid"
-        )
-        
-    def generate(self):
-        try:
-            output_path = self.get_output_path()
-            self.status(f"正在生成: {os.path.basename(output_path)}...")
-            
-            with tempfile.NamedTemporaryFile("w", delete=False, encoding='utf-8') as f:
-                # 写入全局参数
-                f.write(f"@tempo={self.tempo.get()}\n")
-                f.write(f"@time_signature={self.time_num.get()}/{self.time_den.get()}\n")
-                f.write(f"@key={self.key.get()}\n")
-                f.write(self.editor.get(1.0, tk.END))
-                temp_path = f.name
-                
-            metadata, tracks, warnings = parse_input(temp_path)
-            create_midi(metadata, tracks, output_path)
-            
-            # 构建消息内容
-            msg = [
-                f"✅ 生成成功！",
-                f"📁 路径: {output_path}",
-                f"📏 大小: {self.format_file_size(output_path)}",
-                f"🎵 轨道数: {len(tracks)}"
-            ]
-            
-            if warnings:
-                msg.append("\n⚠ 警告:")
-                msg.extend([f"• {w}" for w in warnings])
-                
-            self.status(" | ".join(msg))
-            messagebox.showinfo(
-                "生成完成",
-                "\n".join(msg),
-                detail=f"输出目录: {os.path.dirname(output_path)}"
-            )
-            
-            if os.name == 'nt':
-                os.startfile(os.path.dirname(output_path))
-            else:
-                os.system(f'open "{os.path.dirname(output_path)}"')
-                
-        except Exception as e:
-            error_msg = str(e).split(":", 1)[-1].strip()
-            self.status(f"❌ 错误: {error_msg}", error=True)
-            messagebox.showerror(
-                "生成错误",
-                error_msg,
-                detail="请检查：\n1. 轨道定义语法\n2. 参数有效性\n3. 文件权限"
-            )
-        finally:
-            if 'temp_path' in locals() and os.path.exists(temp_path):
-                os.remove(temp_path)
-                
-    def format_file_size(self, file_path):
-        size_bytes = os.path.getsize(file_path)
-        for unit in ['B', 'KB', 'MB']:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} GB"
-        
-    def status(self, text, error=False):
-        self.status_bar.config(
-            text=text,
-            foreground="#dc3545" if error else "#28a745",
-            font=('Segoe UI', 9, 'italic' if error else 'normal')
-        )
-        
-    def setup_bindings(self):
-        self.root.bind_all("<Control-o>", lambda e: self.browse_input())
-        self.root.bind_all("<Control-s>", lambda e: self.generate())
-        self.root.bind_all("<Alt-Up>", lambda e: self.editor.yview("scroll", -1, "units"))
-        self.root.bind_all("<Alt-Down>", lambda e: self.editor.yview("scroll", 1, "units"))
-        
-    def browse_input(self):
+        self.line_numbers._redraw()
+    
+    def _open_file(self):
         path = filedialog.askopenfilename(
             filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
         )
         if path:
-            self.input_path.delete(0, tk.END)
-            self.input_path.insert(0, path)
-            self.load_file(path)
-            
-    def browse_output(self):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    self.editor.delete('1.0', tk.END)
+                    self.editor.insert('1.0', f.read())
+                self.current_file = path
+                self._update_status(f"已加载文件: {os.path.basename(path)}")
+            except Exception as e:
+                messagebox.showerror("打开失败", str(e))
+    
+    def _save_file(self):
+        if not self.current_file:
+            self._save_file_as()
+            return
+        
+        try:
+            content = self.editor.get('1.0', tk.END)
+            with open(self.current_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            self._update_status(f"文件已保存: {self.current_file}")
+        except Exception as e:
+            messagebox.showerror("保存失败", str(e))
+    
+    def _save_file_as(self):
         path = filedialog.asksaveasfilename(
-            defaultextension=".mid",
-            filetypes=[("MIDI Files", "*.mid"), ("All Files", "*.*")]
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
         )
         if path:
-            self.output_path.delete(0, tk.END)
-            self.output_path.insert(0, path)
-            
-    def load_file(self, path):
+            self.current_file = path
+            self._save_file()
+    
+    def _generate(self):
+        content = self.editor.get('1.0', tk.END)
+        if not content.strip():
+            messagebox.showwarning("空内容", "请输入有效的简谱内容")
+            return
+        
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                self.editor.delete(1.0, tk.END)
-                self.editor.insert(tk.END, content)
-                self.update_line_numbers()
-                self.status(f"已加载文件: {os.path.basename(path)}")
-        except Exception as e:
-            self.status(f"加载失败: {str(e)}", error=True)
+            # 临时文件处理
+            with tempfile.NamedTemporaryFile('w', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
             
-    def clear_editor(self):
-        self.editor.delete(1.0, tk.END)
-        self.update_line_numbers()
-        self.status("编辑器已重置")
+            global_meta, tracks, warnings = parse_input(content)
+            
+            # 保存对话框
+            output_path = filedialog.asksaveasfilename(
+                defaultextension=".mid",
+                filetypes=[("MIDI Files", "*.mid"), ("All Files", "*.*")]
+            )
+            if output_path:
+                create_midi(global_meta, tracks, output_path)
+                
+                # 显示生成结果
+                success_msg = [
+                    f"成功生成: {os.path.basename(output_path)}",
+                    f"轨道数: {len(tracks)}",
+                    f"文件大小: {self._format_size(os.path.getsize(output_path))}"
+                ]
+                self._update_status(" | ".join(success_msg))
+                
+                # 显示警告
+                if warnings:
+                    msg = "\n".join(warnings)
+                    messagebox.showwarning(
+                        "生成警告",
+                        f"检测到{len(warnings)}条警告:\n{msg}",
+                        detail=f"文件已保存到:\n{output_path}"
+                    )
+                
+                # 打开所在文件夹
+                if messagebox.askyesno("打开文件夹", "是否打开输出目录？"):
+                    os.startfile(os.path.dirname(output_path))
+        
+        except Exception as e:
+            self._show_error(str(e))
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+    
+    def _format_size(self, size):
+        for unit in ['B', 'KB', 'MB']:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} GB"
+    
+    def _update_status(self, text, error=False):
+        self.status.config(
+            text=text,
+            foreground='#dc3545' if error else '#28a745'
+        )
+    
+    def _show_error(self, message):
+        self._update_status(f"错误: {message}", error=True)
+        messagebox.showerror(
+            "生成失败",
+            message,
+            detail="请检查：\n1. 输入格式是否正确\n2. 参数设置是否合法\n3. 文件权限"
+        )
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     root = tk.Tk()
     app = NMNConverterApp(root)
     root.mainloop()
