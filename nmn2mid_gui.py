@@ -195,13 +195,13 @@ class NMNConverterApp:
 
     def show_about_info(self):
         about_text = (
-            "简谱转MIDI转换器 v1.2\n\n"
+            "简谱转MIDI转换器 v1.0\n\n"
             "功能特性：\n"
             "• 智能简谱解析\n"
             "• 多轨道支持\n"
             "• 实时语法高亮\n"
             "• 跨平台兼容\n\n"
-            "GitHub: github.com/your-repo"
+            "GitHub: github.com/qmzqd/nmn2mid\n"
         )
         messagebox.showinfo("关于", about_text)
 

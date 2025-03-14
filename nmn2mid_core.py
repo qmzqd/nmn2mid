@@ -34,14 +34,22 @@ def parse_global_metadata(line, line_num, global_defaults, warnings):
             numerator, denominator = map(int, value.split('/'))
             global_defaults['time_signature'] = (numerator, denominator)
         elif key == 'key':
-            # 解析调号（支持大小调，如C、Am、G#m等）
-            match = re.match(r'^([A-Ga-g](?:#|b)?)(m|min|minor)?$', 
-                           value.strip(), re.IGNORECASE)
+            # 解析调号（支持大小调，如C、Am、G#maj等）
+            match = re.match(
+                r'^([A-Ga-g](?:#|b)?)(m|min|minor|maj|major)?$',
+                value.strip(),
+                re.IGNORECASE
+            )
             if not match:
                 raise ValueError(f"无效调号格式: {value}")
             
             root = match.group(1).upper()
-            mode = 'minor' if match.group(2) else 'major'
+            mode_str = (match.group(2) or '').lower()
+
+            if mode_str in ('m', 'min', 'minor'):
+                mode = 'minor'
+            else:
+                mode = 'major'
             
             if root not in KEY_ROOT_TO_BASE:
                 raise ValueError(f"无效根音: {root}")
@@ -72,13 +80,21 @@ def parse_track_metadata(line, line_num, current_track, warnings):
             warnings.append(f"第{line_num}行: 轨道time_signature参数已被弃用，请使用全局设置")
         elif key == 'key':
             # 解析调号（支持大小调）
-            match = re.match(r'^([A-Ga-g](?:#|b)?)(m|min|minor)?$', 
-                           value.strip(), re.IGNORECASE)
+            match = re.match(
+                r'^([A-Ga-g](?:#|b)?)(m|min|minor|maj|major)?$',
+                value.strip(),
+                re.IGNORECASE
+            )
             if not match:
                 raise ValueError(f"无效调号格式: {value}")
             
             root = match.group(1).upper()
-            mode = 'minor' if match.group(2) else 'major'
+            mode_str = (match.group(2) or '').lower()
+
+            if mode_str in ('m', 'min', 'minor'):
+                mode = 'minor'
+            else:
+                mode = 'major'
             
             if root not in KEY_ROOT_TO_BASE:
                 raise ValueError(f"无效根音: {root}")
@@ -171,9 +187,13 @@ def parse_note(note_str, key_root, key_mode):
         match = re.fullmatch(r'0([.-]*)', note_str)
         if not match:
             raise ValueError(f"无效休止符格式: {note_str}")
+        duration_mod = match.group(1)
+        dashes = duration_mod.count('-')
+        dots = duration_mod.count('.')
         duration = 1.0
-        for c in match.group(1):
-            duration *= 2 if c == '-' else 1.5
+        duration *= (0.5 ** dashes)
+        if dots > 0:
+            duration *= (2.0 - (1.0 / (2 ** dots)))
         return None, duration
     
     match = re.fullmatch(r'([#b]?)([1-7])([_^]*)([.-]*)', note_str)
@@ -207,9 +227,12 @@ def parse_note(note_str, key_root, key_mode):
         raise ValueError(f"音高超出范围(0-127): {midi_pitch}")
     
     # 计算时值
+    dashes = duration_mod.count('-')
+    dots = duration_mod.count('.')
     duration = 1.0
-    for c in duration_mod:
-        duration *= 2 if c == '-' else 1.5
+    duration *= (0.5 ** dashes)
+    if dots > 0:
+        duration *= (2.0 - (1.0 / (2 ** dots)))
     
     return midi_pitch, duration
 
@@ -219,6 +242,7 @@ def create_track_events(track_data, ticks_per_beat):
     current_time = 0
     key_root = track_data['metadata']['key_root']
     key_mode = track_data['metadata']['key_mode']
+    errors = []
     
     for note_str in track_data['notes']:
         try:
@@ -232,7 +256,10 @@ def create_track_events(track_data, ticks_per_beat):
                 events.append(('note_off', pitch, current_time + ticks))
                 current_time += ticks
         except Exception as e:
-            print(f"Error parsing note: {note_str} with error {str(e)}")
+            errors.append(f"无效音符 '{note_str}': {str(e)}")
+    
+    if errors:
+        raise ValueError("\n".join(errors))
     
     # 排序事件并计算delta时间
     events.sort(key=lambda x: x[2])
@@ -263,8 +290,12 @@ def create_midi(global_meta, tracks, output_path):
                           program=track_data['metadata']['instrument'],
                           time=0))
         
-        # 生成事件并写入轨道
-        events = create_track_events(track_data, global_meta['ticks_per_beat'])
+        try:
+            # 生成事件并写入轨道
+            events = create_track_events(track_data, global_meta['ticks_per_beat'])
+        except ValueError as e:
+            raise ValueError(f"轨道错误: {str(e)}")
+        
         last_time = 0
         for event in events:
             delta = event[2] - last_time
@@ -285,7 +316,7 @@ def main_cli():
         epilog='示例：\n'
                '  python nmn2midi_core.py input.txt -o output.mid\n\n'
                '支持特性：\n'
-               '- 全调号支持（包括大调和小调，如C、Am、F#m等）\n'
+               '- 全调号支持（包括大调和小调，如C、Am、F#maj等）\n'
                '- 行内注释（使用#符号）\n'
                '- 复杂节奏型（附点、连音线）\n'
                '- 多轨道支持')
