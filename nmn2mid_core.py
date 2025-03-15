@@ -1,7 +1,6 @@
 # File 1: nmn2midi_core.py
 import mido
 import re
-import copy
 import argparse
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 

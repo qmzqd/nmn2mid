@@ -3,6 +3,8 @@ import mido
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, colorchooser
 import re
+import platform
+import subprocess
 from nmn2mid_core import parse_input, create_midi
 
 class EnhancedText(tk.Text):
@@ -19,7 +21,6 @@ class EnhancedText(tk.Text):
             'spacing3': 3
         })
         super().__init__(*args, **kwargs)
-        self.line_numbers = None
 
 class SyntaxHighlighter:
     """改进的语法高亮系统"""
@@ -191,6 +192,7 @@ class NMNConverterApp:
             self.highlight_color = color
             self.highlighter.highlight_color = color
             self.highlighter.update_tags()
+            self.highlighter.highlight()
             messagebox.showinfo("成功", "高亮颜色已更新!")
 
     def show_about_info(self):
@@ -243,7 +245,7 @@ class NMNConverterApp:
             editor_frame,
             width=5,
             padx=8,
-            pady=15,  # 新增pady设置与主编辑器一致，以保持对齐
+            pady=15,
             state="disabled",
             bg="#f8f9fa",
             font=('Consolas', 12),
@@ -416,15 +418,32 @@ class NMNConverterApp:
             # 解析并生成MIDI
             global_meta, tracks, warnings = parse_input(content)
             
-            # 更新全局元数据
-            global_meta.update({
-                'tempo': mido.bpm2tempo(int(self.tempo.get() or 120)),
-                'time_signature': (
-                    int(self.time_num.get() or 4),
-                    int(self.time_den.get() or 4)
-                ),
-                'key': self.key.get() or 'C'
-            })
+            # 处理控件值并更新元数据
+            if self.tempo.get().strip():
+                try:
+                    tempo = int(self.tempo.get())
+                    global_meta['tempo'] = mido.bpm2tempo(tempo)
+                except ValueError:
+                    raise ValueError("速度必须是有效的整数")
+            
+            if self.time_num.get().strip() and self.time_den.get().strip():
+                try:
+                    time_num = int(self.time_num.get())
+                    time_den = int(self.time_den.get())
+                    global_meta['time_signature'] = (time_num, time_den)
+                except ValueError:
+                    raise ValueError("拍号必须是有效的整数")
+            
+            if self.key.get().strip():
+                global_meta['key'] = self.key.get().strip()
+            
+            # 确保必须的元数据存在
+            if 'tempo' not in global_meta:
+                global_meta['tempo'] = mido.bpm2tempo(120)
+            if 'time_signature' not in global_meta:
+                global_meta['time_signature'] = (4, 4)
+            if 'key' not in global_meta:
+                global_meta['key'] = 'C'
             
             create_midi(global_meta, tracks, output_path)
 
@@ -438,11 +457,22 @@ class NMNConverterApp:
                 messagebox.showwarning("生成警告", "\n".join(warnings))
 
             self.status(" | ".join(status_msg))
-            os.startfile(os.path.dirname(output_path))
+            self.open_file_manager(os.path.dirname(output_path))
 
         except Exception as e:
             self.status(f"生成错误: {str(e)}", error=True)
             messagebox.showerror("错误", str(e))
+
+    def open_file_manager(self, path):
+        try:
+            if platform.system() == "Windows":
+                os.startfile(path)
+            elif platform.system() == "Darwin":
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
+        except Exception as e:
+            messagebox.showerror("错误", f"无法打开目录: {e}")
 
     def get_file_size(self, path):
         size = os.path.getsize(path)
