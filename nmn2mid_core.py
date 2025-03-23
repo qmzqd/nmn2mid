@@ -1,3 +1,4 @@
+# nmn2mid_core.py
 import re
 import mido
 import re
@@ -190,20 +191,22 @@ def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:
     
     return global_defaults, tracks, warnings
 
-def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[int], Fraction]:
-    """解析音符（增强格式验证）"""
+def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[int], Fraction, Optional[str]]:
+    """解析音符（增强格式验证，支持歌词）"""
+    # 处理休止符带歌词的情况
     if note_str.startswith('0'):
-        match = re.fullmatch(r'0([.-]*)', note_str)
+        match = re.fullmatch(r'0([.-]*)(?:\s*"(.*?)")?$', note_str)
         if not match:
             raise ValueError(f"无效休止符格式: {note_str}")
-        mods = match.group(1)
-        return None, _calculate_duration(mods)
+        mods, lyric = match.groups()
+        return None, _calculate_duration(mods), lyric
     
-    match = re.fullmatch(r'^([#b]?)([1-7])([_^]*)([.-]*)$', note_str)
+    # 处理常规音符带歌词的情况
+    match = re.fullmatch(r'^([#b]?)([1-7])([_^]*)([.-]*)(?:\s*"(.*?)")?$', note_str)
     if not match:
         raise ValueError(f"无效音符格式: {note_str}")
     
-    accidental, degree_str, octave_mod, duration_mod = match.groups()
+    accidental, degree_str, octave_mod, duration_mod, lyric = match.groups()
     
     # 验证升降号
     if accidental not in ('', '#', 'b'):
@@ -228,7 +231,7 @@ def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[in
     if not 0 <= midi_pitch <= 127:
         raise ValueError(f"音高超出范围 (0-127): {midi_pitch}")
     
-    return midi_pitch, _calculate_duration(duration_mod)
+    return midi_pitch, _calculate_duration(duration_mod), lyric
 
 def _accidental_offset(accidental: str) -> int:
     """计算升降号偏移量"""
@@ -261,17 +264,22 @@ def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:
     
     for note_str in track_data['notes']:
         try:
-            pitch, duration = parse_note(note_str, key_root, key_mode)
+            pitch, duration, lyric = parse_note(note_str, key_root, key_mode)
             ticks = int(round(duration * ticks_per_beat))
             
             if ticks <= 0:
                 raise ValueError("时值过小")
                 
             if pitch is None:  # 休止符
+                if lyric:
+                    events.append(('lyric', lyric, current_time))
                 current_time += ticks
             else:
+                # 添加音符事件和歌词事件
                 events.append(('note_on', pitch, current_time))
                 events.append(('note_off', pitch, current_time + ticks))
+                if lyric:
+                    events.append(('lyric', lyric, current_time))
                 current_time += ticks
         except Exception as e:
             # 查找原始行号
@@ -284,7 +292,7 @@ def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:
     if errors:
         raise ValueError("音符错误:\n" + "\n".join(f"  • {e}" for e in errors))
     
-    # 按时间排序并计算delta时间
+    # 按时间排序事件
     events.sort(key=lambda x: x[2])
     return events
 
@@ -326,7 +334,10 @@ def create_midi(global_meta: Dict, tracks: List[Dict], output_path: str) -> None
             last_time = 0
             for event in events:
                 delta = event[2] - last_time
-                track.append(Message(event[0], note=event[1], velocity=64, time=delta))
+                if event[0] in ('note_on', 'note_off'):
+                    track.append(Message(event[0], note=event[1], velocity=64, time=delta))
+                elif event[0] == 'lyric':
+                    track.append(MetaMessage('lyrics', text=event[1], time=delta))
                 last_time = event[2]
             
             # 轨道结束
@@ -352,10 +363,11 @@ def main_cli():
 @global_key = C
 
 [track]
-1 2 3 4 | 5 6 7 1^
+1 "Hello" 2 "World" | 5_ "Low" 0 "Pause"
 
 支持特性：
 • 多轨道支持
+• 歌词支持（使用双引号包围）
 • 复杂节奏型（附点、连音线）
 • 全调号支持（含大小调）
 • 行内注释（#符号）"""

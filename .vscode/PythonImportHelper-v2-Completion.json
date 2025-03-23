@@ -232,7 +232,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[int], Fraction]:\n    \"\"\"解析音符（增强格式验证）\"\"\"\n    if note_str.startswith('0'):\n        match = re.fullmatch(r'0([.-]*)', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符格式: {note_str}\")\n        mods = match.group(1)\n        return None, _calculate_duration(mods)\n    match = re.fullmatch(r'^([#b]?)([1-7])([_^]*)([.-]*)$', note_str)\n    if not match:",
+        "peekOfCode": "def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[int], Fraction, Optional[str]]:\n    \"\"\"解析音符（增强格式验证，支持歌词）\"\"\"\n    # 处理休止符带歌词的情况\n    if note_str.startswith('0'):\n        match = re.fullmatch(r'0([.-]*)(?:\\s*\"(.*?)\")?$', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符格式: {note_str}\")\n        mods, lyric = match.groups()\n        return None, _calculate_duration(mods), lyric\n    # 处理常规音符带歌词的情况",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -241,7 +241,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:\n    \"\"\"生成轨道事件（带错误上下文）\"\"\"\n    events = []\n    current_time = 0\n    key_root = track_data['metadata']['key_root']\n    key_mode = track_data['metadata']['key_mode']\n    errors = []\n    for note_str in track_data['notes']:\n        try:\n            pitch, duration = parse_note(note_str, key_root, key_mode)",
+        "peekOfCode": "def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:\n    \"\"\"生成轨道事件（带错误上下文）\"\"\"\n    events = []\n    current_time = 0\n    key_root = track_data['metadata']['key_root']\n    key_mode = track_data['metadata']['key_mode']\n    errors = []\n    for note_str in track_data['notes']:\n        try:\n            pitch, duration, lyric = parse_note(note_str, key_root, key_mode)",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -331,7 +331,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "@global_tempo = 120\n@global_time_signature = 4/4\n@global_key = C\n[track]\n1 2 3 4 | 5 6 7 1^\n支持特性：\n• 多轨道支持\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"",
+        "peekOfCode": "@global_tempo = 120\n@global_time_signature = 4/4\n@global_key = C\n[track]\n1 \"Hello\" 2 \"World\" | 5_ \"Low\" 0 \"Pause\"\n支持特性：\n• 多轨道支持\n• 歌词支持（使用双引号包围）\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -340,7 +340,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "@global_time_signature = 4/4\n@global_key = C\n[track]\n1 2 3 4 | 5 6 7 1^\n支持特性：\n• 多轨道支持\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"\n    )",
+        "peekOfCode": "@global_time_signature = 4/4\n@global_key = C\n[track]\n1 \"Hello\" 2 \"World\" | 5_ \"Low\" 0 \"Pause\"\n支持特性：\n• 多轨道支持\n• 歌词支持（使用双引号包围）\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -349,7 +349,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "@global_key = C\n[track]\n1 2 3 4 | 5 6 7 1^\n支持特性：\n• 多轨道支持\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"\n    )\n    parser.add_argument('input', help='输入文本文件路径')",
+        "peekOfCode": "@global_key = C\n[track]\n1 \"Hello\" 2 \"World\" | 5_ \"Low\" 0 \"Pause\"\n支持特性：\n• 多轨道支持\n• 歌词支持（使用双引号包围）\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"\n    )",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
