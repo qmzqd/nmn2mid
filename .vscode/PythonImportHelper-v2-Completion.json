@@ -1,5 +1,14 @@
 [
     {
+        "label": "re",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "re",
+        "description": "re",
+        "detail": "re",
+        "documentation": {}
+    },
+    {
         "label": "mido",
         "kind": 6,
         "isExtraImport": true,
@@ -41,15 +50,6 @@
         "documentation": {}
     },
     {
-        "label": "re",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "re",
-        "description": "re",
-        "detail": "re",
-        "documentation": {}
-    },
-    {
         "label": "argparse",
         "kind": 6,
         "isExtraImport": true,
@@ -65,6 +65,55 @@
         "importPath": "os",
         "description": "os",
         "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "sys",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sys",
+        "description": "sys",
+        "detail": "sys",
+        "documentation": {}
+    },
+    {
+        "label": "Dict",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Tuple",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Optional",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Fraction",
+        "importPath": "fractions",
+        "description": "fractions",
+        "isExtraImport": true,
+        "detail": "fractions",
         "documentation": {}
     },
     {
@@ -143,11 +192,20 @@
         "documentation": {}
     },
     {
+        "label": "parse_key",
+        "kind": 2,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "def parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )\n    if not match:\n        raise ValueError(f\"无效调号格式: {value}\")\n    root = match.group(1).upper()",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
         "label": "parse_global_metadata",
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行（支持行内注释）\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':\n            global_defaults['tempo'] = mido.bpm2tempo(int(value))\n        elif key == 'time_signature':\n            numerator, denominator = map(int, value.split('/'))",
+        "peekOfCode": "def parse_global_metadata(line: str, line_num: int, \n                        global_defaults: Dict, warnings: List[str]) -> None:\n    \"\"\"解析全局元数据行（增强错误处理）\"\"\"\n    try:\n        # 分离注释并去除空白\n        key_part = line[1:].split('#', 1)[0].strip()\n        if '=' not in key_part:\n            raise ValueError(\"缺少等号分隔符\")\n        key, value = map(str.strip, key_part.split('=', 1))\n        key = key.lower().replace('global_', '')",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -156,7 +214,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def parse_track_metadata(line, line_num, current_track, warnings):\n    \"\"\"解析轨道元数据行（支持行内注释）\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower()\n    try:\n        if key == 'tempo':\n            warnings.append(f\"第{line_num}行: 轨道tempo参数已被弃用，请使用全局设置\")\n        elif key == 'time_signature':\n            warnings.append(f\"第{line_num}行: 轨道time_signature参数已被弃用，请使用全局设置\")",
+        "peekOfCode": "def parse_track_metadata(line: str, line_num: int,\n                       current_track: Dict, warnings: List[str]) -> None:\n    \"\"\"解析轨道元数据（复用调号解析逻辑）\"\"\"\n    try:\n        key_part = line[1:].split('#', 1)[0].strip()\n        if '=' not in key_part:\n            raise ValueError(\"缺少等号分隔符\")\n        key, value = map(str.strip, key_part.split('=', 1))\n        key = key.lower()\n        if key == 'tempo':",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -165,7 +223,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def parse_input(content):\n    \"\"\"解析输入内容并返回全局元数据、轨道列表和警告信息\"\"\"\n    global_defaults = {\n        'tempo': DEFAULT_TEMPO,\n        'time_signature': DEFAULT_TIME_SIGNATURE,\n        'key': DEFAULT_KEY,\n        'key_root': DEFAULT_KEY[0],\n        'key_mode': DEFAULT_KEY[1],\n        'instrument': DEFAULT_INSTRUMENT,\n        'ticks_per_beat': DEFAULT_TICKS_PER_BEAT",
+        "peekOfCode": "def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:\n    \"\"\"解析输入内容（增加行号追踪）\"\"\"\n    global_defaults = {\n        'tempo': DEFAULT_TEMPO,\n        'time_signature': DEFAULT_TIME_SIGNATURE,\n        'key': DEFAULT_KEY,\n        'key_root': DEFAULT_KEY[0],\n        'key_mode': DEFAULT_KEY[1],\n        'instrument': DEFAULT_INSTRUMENT,\n        'ticks_per_beat': DEFAULT_TICKS_PER_BEAT",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -174,7 +232,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def parse_note(note_str, key_root, key_mode):\n    \"\"\"解析单个音符字符串（支持升降号、八度移位和复杂时值）\"\"\"\n    if note_str.startswith('0'):\n        match = re.fullmatch(r'0([.-]*)', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符格式: {note_str}\")\n        duration_mod = match.group(1)\n        dashes = duration_mod.count('-')\n        dots = duration_mod.count('.')\n        duration = 1.0",
+        "peekOfCode": "def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[int], Fraction]:\n    \"\"\"解析音符（增强格式验证）\"\"\"\n    if note_str.startswith('0'):\n        match = re.fullmatch(r'0([.-]*)', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符格式: {note_str}\")\n        mods = match.group(1)\n        return None, _calculate_duration(mods)\n    match = re.fullmatch(r'^([#b]?)([1-7])([_^]*)([.-]*)$', note_str)\n    if not match:",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -183,7 +241,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def create_track_events(track_data, ticks_per_beat):\n    \"\"\"生成轨道事件列表（优化时序计算）\"\"\"\n    events = []\n    current_time = 0\n    key_root = track_data['metadata']['key_root']\n    key_mode = track_data['metadata']['key_mode']\n    errors = []\n    for note_str in track_data['notes']:\n        try:\n            pitch, duration = parse_note(note_str, key_root, key_mode)",
+        "peekOfCode": "def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:\n    \"\"\"生成轨道事件（带错误上下文）\"\"\"\n    events = []\n    current_time = 0\n    key_root = track_data['metadata']['key_root']\n    key_mode = track_data['metadata']['key_mode']\n    errors = []\n    for note_str in track_data['notes']:\n        try:\n            pitch, duration = parse_note(note_str, key_root, key_mode)",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -192,7 +250,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def create_midi(global_meta, tracks, output_path):\n    \"\"\"生成多轨MIDI文件（增强元数据支持）\"\"\"\n    mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])\n    # 创建全局控制轨道\n    global_track = MidiTrack()\n    mid.tracks.append(global_track)\n    global_track.append(MetaMessage('set_tempo', \n                                  tempo=global_meta['tempo'], \n                                  time=0))\n    global_track.append(MetaMessage('time_signature',",
+        "peekOfCode": "def create_midi(global_meta: Dict, tracks: List[Dict], output_path: str) -> None:\n    \"\"\"生成MIDI文件（增强鲁棒性）\"\"\"\n    if not tracks:\n        raise ValueError(\"无有效轨道数据\")\n    try:\n        mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])\n        # 全局轨道\n        global_track = MidiTrack()\n        mid.tracks.append(global_track)\n        global_track.append(MetaMessage('set_tempo',",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -201,7 +259,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def main_cli():\n    \"\"\"命令行入口（改进帮助信息）\"\"\"\n    parser = argparse.ArgumentParser(\n        description='简谱转MIDI命令行版 v1.0',\n        formatter_class=argparse.RawTextHelpFormatter,\n        epilog='示例：\\n'\n               '  python nmn2midi_core.py input.txt -o output.mid\\n\\n'\n               '支持特性：\\n'\n               '- 全调号支持（包括大调和小调，如C、Am、F#maj等）\\n'\n               '- 行内注释（使用#符号）\\n'",
+        "peekOfCode": "def main_cli():\n    \"\"\"命令行接口（增强错误处理）\"\"\"\n    parser = argparse.ArgumentParser(\n        description='简谱转MIDI转换器 v2.0',\n        formatter_class=argparse.RawTextHelpFormatter,\n        epilog=\"\"\"输入文件格式示例：\n@global_tempo = 120\n@global_time_signature = 4/4\n@global_key = C\n[track]",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -210,7 +268,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "KEY_ROOT_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\nSCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],    # 大调音阶\n    'minor': [0, 2, 3, 5, 7, 8, 10]     # 自然小调音阶\n}\nDEFAULT_TICKS_PER_BEAT = 480",
+        "peekOfCode": "KEY_ROOT_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\nSCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],\n    'minor': [0, 2, 3, 5, 7, 8, 10]\n}\nDEFAULT_TICKS_PER_BEAT = 480",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -219,7 +277,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "SCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],    # 大调音阶\n    'minor': [0, 2, 3, 5, 7, 8, 10]     # 自然小调音阶\n}\nDEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_global_metadata(line, line_num, global_defaults, warnings):",
+        "peekOfCode": "SCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],\n    'minor': [0, 2, 3, 5, 7, 8, 10]\n}\nDEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -228,7 +286,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行（支持行内注释）\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')",
+        "peekOfCode": "DEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -237,7 +295,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行（支持行内注释）\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:",
+        "peekOfCode": "DEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -246,7 +304,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行（支持行内注释）\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':",
+        "peekOfCode": "DEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -255,7 +313,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行（支持行内注释）\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':\n            global_defaults['tempo'] = mido.bpm2tempo(int(value))",
+        "peekOfCode": "DEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )\n    if not match:",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -264,7 +322,34 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_KEY = ('C', 'major')\ndef parse_global_metadata(line, line_num, global_defaults, warnings):\n    \"\"\"解析全局元数据行（支持行内注释）\"\"\"\n    key_part = line[1:].split('#')[0].strip()\n    key, value = key_part.split('=', 1)\n    key = key.lower().replace('global_', '')\n    try:\n        if key == 'tempo':\n            global_defaults['tempo'] = mido.bpm2tempo(int(value))\n        elif key == 'time_signature':",
+        "peekOfCode": "DEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )\n    if not match:\n        raise ValueError(f\"无效调号格式: {value}\")",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "@global_tempo",
+        "kind": 5,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "@global_tempo = 120\n@global_time_signature = 4/4\n@global_key = C\n[track]\n1 2 3 4 | 5 6 7 1^\n支持特性：\n• 多轨道支持\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "@global_time_signature",
+        "kind": 5,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "@global_time_signature = 4/4\n@global_key = C\n[track]\n1 2 3 4 | 5 6 7 1^\n支持特性：\n• 多轨道支持\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"\n    )",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "@global_key",
+        "kind": 5,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "@global_key = C\n[track]\n1 2 3 4 | 5 6 7 1^\n支持特性：\n• 多轨道支持\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"\n    )\n    parser.add_argument('input', help='输入文本文件路径')",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
