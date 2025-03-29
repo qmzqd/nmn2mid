@@ -158,6 +158,38 @@
         "documentation": {}
     },
     {
+        "label": "ttk",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "filedialog",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "messagebox",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
+        "label": "colorchooser",
+        "importPath": "tkinter",
+        "description": "tkinter",
+        "isExtraImport": true,
+        "detail": "tkinter",
+        "documentation": {}
+    },
+    {
         "label": "platform",
         "kind": 6,
         "isExtraImport": true,
@@ -192,38 +224,27 @@
         "documentation": {}
     },
     {
+        "label": "parse_input",
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "isExtraImport": true,
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "create_midi",
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "isExtraImport": true,
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
         "label": "parse_key",
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )\n    if not match:\n        raise ValueError(f\"无效调号格式: {value}\")\n    root = match.group(1).upper()",
-        "detail": "nmn2mid_core",
-        "documentation": {}
-    },
-    {
-        "label": "parse_global_metadata",
-        "kind": 2,
-        "importPath": "nmn2mid_core",
-        "description": "nmn2mid_core",
-        "peekOfCode": "def parse_global_metadata(line: str, line_num: int, \n                        global_defaults: Dict, warnings: List[str]) -> None:\n    \"\"\"解析全局元数据行（增强错误处理）\"\"\"\n    try:\n        # 分离注释并去除空白\n        key_part = line[1:].split('#', 1)[0].strip()\n        if '=' not in key_part:\n            raise ValueError(\"缺少等号分隔符\")\n        key, value = map(str.strip, key_part.split('=', 1))\n        key = key.lower().replace('global_', '')",
-        "detail": "nmn2mid_core",
-        "documentation": {}
-    },
-    {
-        "label": "parse_track_metadata",
-        "kind": 2,
-        "importPath": "nmn2mid_core",
-        "description": "nmn2mid_core",
-        "peekOfCode": "def parse_track_metadata(line: str, line_num: int,\n                       current_track: Dict, warnings: List[str]) -> None:\n    \"\"\"解析轨道元数据（复用调号解析逻辑）\"\"\"\n    try:\n        key_part = line[1:].split('#', 1)[0].strip()\n        if '=' not in key_part:\n            raise ValueError(\"缺少等号分隔符\")\n        key, value = map(str.strip, key_part.split('=', 1))\n        key = key.lower()\n        if key == 'tempo':",
-        "detail": "nmn2mid_core",
-        "documentation": {}
-    },
-    {
-        "label": "parse_input",
-        "kind": 2,
-        "importPath": "nmn2mid_core",
-        "description": "nmn2mid_core",
-        "peekOfCode": "def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:\n    \"\"\"解析输入内容（增加行号追踪）\"\"\"\n    global_defaults = {\n        'tempo': DEFAULT_TEMPO,\n        'time_signature': DEFAULT_TIME_SIGNATURE,\n        'key': DEFAULT_KEY,\n        'key_root': DEFAULT_KEY[0],\n        'key_mode': DEFAULT_KEY[1],\n        'instrument': DEFAULT_INSTRUMENT,\n        'ticks_per_beat': DEFAULT_TICKS_PER_BEAT",
+        "peekOfCode": "def parse_key(value: str) -> Tuple[str, str, int]:\n    \"\"\"解析调号（增强格式兼容性）\"\"\"\n    # 鼓组调号处理 (如C5)\n    drum_match = re.match(r'^\\s*([A-Ga-g])(\\d+)\\s*$', value, re.IGNORECASE)\n    if drum_match:\n        root = drum_match.group(1).upper()\n        return root, 'drum', int(drum_match.group(2)) - (5 if root == 'C' else 4)\n    # 常规调号处理 (如C+1)\n    match = re.match(\n        r'^\\s*([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)\\s*([+-]\\d+)?\\s*$',",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -232,7 +253,43 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[int], Fraction, Optional[str]]:\n    \"\"\"解析音符（增强格式验证，支持歌词）\"\"\"\n    # 处理休止符带歌词的情况\n    if note_str.startswith('0'):\n        match = re.fullmatch(r'0([.-]*)(?:\\s*\"(.*?)\")?$', note_str)\n        if not match:\n            raise ValueError(f\"无效休止符格式: {note_str}\")\n        mods, lyric = match.groups()\n        return None, _calculate_duration(mods), lyric\n    # 处理常规音符带歌词的情况",
+        "peekOfCode": "def parse_note(note_str: str, key_root: str, key_mode: str, key_octave: int) -> Tuple[Optional[int], Fraction, Optional[str]]:\n    \"\"\"解析音符（增强容错处理）\"\"\"\n    # 预处理：移除非法字符并标准化\n    note_str = re.sub(r'[|]', '', note_str).strip()  # 移除小节分隔符\n    # 纯歌词处理（允许空歌词）\n    if note_str.startswith('\"'):\n        end_quote = note_str.find('\"', 1)\n        if end_quote == -1:\n            lyric = note_str[1:]\n        else:",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "parse_global_metadata",
+        "kind": 2,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "def parse_global_metadata(line: str, line_num: int, \n                        global_defaults: Dict, warnings: List[str]) -> None:\n    \"\"\"解析全局元数据行\"\"\"\n    try:\n        key_part = line[1:].split('#', 1)[0].strip()\n        if '=' not in key_part:\n            raise ValueError(\"缺少等号分隔符\")\n        key, value = map(str.strip, key_part.split('=', 1))\n        key = key.lower().replace('global_', '')\n        if key == 'tempo':",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "parse_track_metadata",
+        "kind": 2,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "def parse_track_metadata(line: str, line_num: int,\n                       current_track: Dict, warnings: List[str]) -> None:\n    \"\"\"解析轨道元数据\"\"\"\n    try:\n        key_part = line[1:].split('#', 1)[0].strip()\n        if '=' not in key_part:\n            raise ValueError(\"缺少等号分隔符\")\n        key, value = map(str.strip, key_part.split('=', 1))\n        key = key.lower()\n        if key == 'tempo':",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "parse_input",
+        "kind": 2,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:\n    \"\"\"解析输入内容\"\"\"\n    global_defaults = {\n        'tempo': DEFAULT_TEMPO,\n        'time_signature': DEFAULT_TIME_SIGNATURE,\n        'key': DEFAULT_KEY,\n        'key_root': DEFAULT_KEY[0],\n        'key_mode': DEFAULT_KEY[1],\n        'key_octave': DEFAULT_KEY[2],\n        'instrument': DEFAULT_INSTRUMENT,",
+        "detail": "nmn2mid_core",
+        "documentation": {}
+    },
+    {
+        "label": "parse_note",
+        "kind": 2,
+        "importPath": "nmn2mid_core",
+        "description": "nmn2mid_core",
+        "peekOfCode": "def parse_note(note_str: str, key_root: str, key_mode: str, key_octave: int) -> Tuple[Optional[int], Fraction, Optional[str]]:\n    \"\"\"解析音符（支持鼓组专用处理）\"\"\"\n    # 处理纯歌词的情况\n    lyric_match = re.fullmatch(r'^\\s*\"(.*?)\"\\s*$', note_str)\n    if lyric_match:\n        return None, Fraction(0), lyric_match.group(1)\n    # 处理休止符带歌词的情况\n    if note_str.startswith('0'):\n        match = re.fullmatch(r'0([.-]*)(?:\\s*\"(.*?)\")?$', note_str)\n        if not match:",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -241,7 +298,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:\n    \"\"\"生成轨道事件（带错误上下文）\"\"\"\n    events = []\n    current_time = 0\n    key_root = track_data['metadata']['key_root']\n    key_mode = track_data['metadata']['key_mode']\n    errors = []\n    for note_str in track_data['notes']:\n        try:\n            pitch, duration, lyric = parse_note(note_str, key_root, key_mode)",
+        "peekOfCode": "def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:\n    \"\"\"生成轨道事件\"\"\"\n    events = []\n    current_time = 0\n    key_root = track_data['metadata']['key_root']\n    key_mode = track_data['metadata']['key_mode']\n    key_octave = track_data['metadata']['key_octave']\n    errors = []\n    for note_str in track_data['notes']:\n        try:",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -250,7 +307,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def create_midi(global_meta: Dict, tracks: List[Dict], output_path: str) -> None:\n    \"\"\"生成MIDI文件（增强鲁棒性）\"\"\"\n    if not tracks:\n        raise ValueError(\"无有效轨道数据\")\n    try:\n        mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])\n        # 全局轨道\n        global_track = MidiTrack()\n        mid.tracks.append(global_track)\n        global_track.append(MetaMessage('set_tempo',",
+        "peekOfCode": "def create_midi(global_meta: Dict, tracks: List[Dict], output_path: str) -> None:\n    \"\"\"生成MIDI文件\"\"\"\n    if not tracks:\n        raise ValueError(\"无有效轨道数据\")\n    try:\n        mid = MidiFile(ticks_per_beat=global_meta['ticks_per_beat'])\n        # 全局轨道\n        global_track = MidiTrack()\n        mid.tracks.append(global_track)\n        global_track.append(MetaMessage('set_tempo',",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -259,7 +316,7 @@
         "kind": 2,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "def main_cli():\n    \"\"\"命令行接口（增强错误处理）\"\"\"\n    parser = argparse.ArgumentParser(\n        description='简谱转MIDI转换器 v2.0',\n        formatter_class=argparse.RawTextHelpFormatter,\n        epilog=\"\"\"输入文件格式示例：\n@global_tempo = 120\n@global_time_signature = 4/4\n@global_key = C\n[track]",
+        "peekOfCode": "def main_cli():\n    \"\"\"命令行接口\"\"\"\n    parser = argparse.ArgumentParser(\n        description='简谱转MIDI转换器 v2.1',\n        formatter_class=argparse.RawTextHelpFormatter,\n        epilog=\"\"\"输入文件示例：\n@global_tempo=120\n@global_key=C\n[track]\n@instrument=118  # 鼓组",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -268,7 +325,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "KEY_ROOT_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\nSCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],\n    'minor': [0, 2, 3, 5, 7, 8, 10]\n}\nDEFAULT_TICKS_PER_BEAT = 480",
+        "peekOfCode": "KEY_ROOT_TO_BASE = {\n    'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,\n    'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,\n    'Ab': 68, 'A': 69, 'A#': 70, 'Bb': 70, 'B': 71\n}\nSCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],\n    'minor': [0, 2, 3, 5, 7, 8, 10],\n    'drum': []\n}",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -277,7 +334,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "SCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],\n    'minor': [0, 2, 3, 5, 7, 8, 10]\n}\nDEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:",
+        "peekOfCode": "SCALE_PATTERNS = {\n    'major': [0, 2, 4, 5, 7, 9, 11],\n    'minor': [0, 2, 3, 5, 7, 8, 10],\n    'drum': []\n}\nDEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major', 0)",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -286,7 +343,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),",
+        "peekOfCode": "DEFAULT_TICKS_PER_BEAT = 480\nDEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major', 0)\ndef parse_key(value: str) -> Tuple[str, str, int]:\n    \"\"\"解析调号（增强格式兼容性）\"\"\"\n    # 鼓组调号处理 (如C5)\n    drum_match = re.match(r'^\\s*([A-Ga-g])(\\d+)\\s*$', value, re.IGNORECASE)\n    if drum_match:",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -295,7 +352,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE",
+        "peekOfCode": "DEFAULT_INSTRUMENT = 0\nDEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major', 0)\ndef parse_key(value: str) -> Tuple[str, str, int]:\n    \"\"\"解析调号（增强格式兼容性）\"\"\"\n    # 鼓组调号处理 (如C5)\n    drum_match = re.match(r'^\\s*([A-Ga-g])(\\d+)\\s*$', value, re.IGNORECASE)\n    if drum_match:\n        root = drum_match.group(1).upper()",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -304,7 +361,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )",
+        "peekOfCode": "DEFAULT_TEMPO = mido.bpm2tempo(120)\nDEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major', 0)\ndef parse_key(value: str) -> Tuple[str, str, int]:\n    \"\"\"解析调号（增强格式兼容性）\"\"\"\n    # 鼓组调号处理 (如C5)\n    drum_match = re.match(r'^\\s*([A-Ga-g])(\\d+)\\s*$', value, re.IGNORECASE)\n    if drum_match:\n        root = drum_match.group(1).upper()\n        return root, 'drum', int(drum_match.group(2)) - (5 if root == 'C' else 4)",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -313,7 +370,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )\n    if not match:",
+        "peekOfCode": "DEFAULT_TIME_SIGNATURE = (4, 4)\nDEFAULT_KEY = ('C', 'major', 0)\ndef parse_key(value: str) -> Tuple[str, str, int]:\n    \"\"\"解析调号（增强格式兼容性）\"\"\"\n    # 鼓组调号处理 (如C5)\n    drum_match = re.match(r'^\\s*([A-Ga-g])(\\d+)\\s*$', value, re.IGNORECASE)\n    if drum_match:\n        root = drum_match.group(1).upper()\n        return root, 'drum', int(drum_match.group(2)) - (5 if root == 'C' else 4)\n    # 常规调号处理 (如C+1)",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -322,34 +379,7 @@
         "kind": 5,
         "importPath": "nmn2mid_core",
         "description": "nmn2mid_core",
-        "peekOfCode": "DEFAULT_KEY = ('C', 'major')\ndef parse_key(value: str) -> Tuple[str, str]:\n    \"\"\"统一解析调号格式（支持大小写和多种模式写法）\"\"\"\n    match = re.match(\n        r'^([A-Ga-g](?:#|b)?)\\s*((?:m|min|minor|maj|major)?)$',\n        value.strip(),\n        re.IGNORECASE\n    )\n    if not match:\n        raise ValueError(f\"无效调号格式: {value}\")",
-        "detail": "nmn2mid_core",
-        "documentation": {}
-    },
-    {
-        "label": "@global_tempo",
-        "kind": 5,
-        "importPath": "nmn2mid_core",
-        "description": "nmn2mid_core",
-        "peekOfCode": "@global_tempo = 120\n@global_time_signature = 4/4\n@global_key = C\n[track]\n1 \"Hello\" 2 \"World\" | 5_ \"Low\" 0 \"Pause\"\n支持特性：\n• 多轨道支持\n• 歌词支持（使用双引号包围）\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）",
-        "detail": "nmn2mid_core",
-        "documentation": {}
-    },
-    {
-        "label": "@global_time_signature",
-        "kind": 5,
-        "importPath": "nmn2mid_core",
-        "description": "nmn2mid_core",
-        "peekOfCode": "@global_time_signature = 4/4\n@global_key = C\n[track]\n1 \"Hello\" 2 \"World\" | 5_ \"Low\" 0 \"Pause\"\n支持特性：\n• 多轨道支持\n• 歌词支持（使用双引号包围）\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"",
-        "detail": "nmn2mid_core",
-        "documentation": {}
-    },
-    {
-        "label": "@global_key",
-        "kind": 5,
-        "importPath": "nmn2mid_core",
-        "description": "nmn2mid_core",
-        "peekOfCode": "@global_key = C\n[track]\n1 \"Hello\" 2 \"World\" | 5_ \"Low\" 0 \"Pause\"\n支持特性：\n• 多轨道支持\n• 歌词支持（使用双引号包围）\n• 复杂节奏型（附点、连音线）\n• 全调号支持（含大小调）\n• 行内注释（#符号）\"\"\"\n    )",
+        "peekOfCode": "DEFAULT_KEY = ('C', 'major', 0)\ndef parse_key(value: str) -> Tuple[str, str, int]:\n    \"\"\"解析调号（增强格式兼容性）\"\"\"\n    # 鼓组调号处理 (如C5)\n    drum_match = re.match(r'^\\s*([A-Ga-g])(\\d+)\\s*$', value, re.IGNORECASE)\n    if drum_match:\n        root = drum_match.group(1).upper()\n        return root, 'drum', int(drum_match.group(2)) - (5 if root == 'C' else 4)\n    # 常规调号处理 (如C+1)\n    match = re.match(",
         "detail": "nmn2mid_core",
         "documentation": {}
     },
@@ -378,6 +408,33 @@
         "description": "nmn2mid_gui",
         "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.0\")\n        root.geometry(\"1200x800\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.current_file = None\n        self.highlight_color = \"#007BFF\"\n        self.highlighter = None\n        self.settings_window = None",
         "detail": "nmn2mid_gui",
+        "documentation": {}
+    },
+    {
+        "label": "EnhancedText",
+        "kind": 6,
+        "importPath": "tempCodeRunnerFile",
+        "description": "tempCodeRunnerFile",
+        "peekOfCode": "class EnhancedText(tk.Text):\n    \"\"\"带行号对齐优化的文本编辑器\"\"\"\n    def __init__(self, *args, **kwargs):\n        kwargs.update({\n            'wrap': tk.NONE,\n            'font': ('Consolas', 12),\n            'undo': True,\n            'padx': 15,\n            'pady': 15,\n            'bg': \"white\",",
+        "detail": "tempCodeRunnerFile",
+        "documentation": {}
+    },
+    {
+        "label": "SyntaxHighlighter",
+        "kind": 6,
+        "importPath": "tempCodeRunnerFile",
+        "description": "tempCodeRunnerFile",
+        "peekOfCode": "class SyntaxHighlighter:\n    \"\"\"改进的语法高亮系统\"\"\"\n    def __init__(self, text_widget, highlight_color):\n        self.text = text_widget\n        self.highlight_color = highlight_color\n        self.update_tags()\n    def update_tags(self):\n        self.text.tag_configure('meta', foreground=self.highlight_color)\n        self.text.tag_configure('track', foreground='#28a745')\n        self.text.tag_configure('comment', foreground='#6c757d')",
+        "detail": "tempCodeRunnerFile",
+        "documentation": {}
+    },
+    {
+        "label": "NMNConverterApp",
+        "kind": 6,
+        "importPath": "tempCodeRunnerFile",
+        "description": "tempCodeRunnerFile",
+        "peekOfCode": "class NMNConverterApp:\n    def __init__(self, root):\n        self.root = root\n        root.title(\"NMN2MIDI Converter v1.0\")\n        root.geometry(\"1200x800\")\n        self.default_output_dir = os.path.join(os.getcwd(), \"outputs\")\n        self.current_file = None\n        self.highlight_color = \"#007BFF\"\n        self.highlighter = None\n        self.settings_window = None",
+        "detail": "tempCodeRunnerFile",
         "documentation": {}
     }
 ]

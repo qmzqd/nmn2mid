@@ -1,12 +1,28 @@
-@global_tempo=90
-@global_time_signature=3/4
-@global_key=C
-@global_instrument=0
+# 全局参数设置
+@global_tempo = 120
+@global_time_signature = 3/4
+@global_key = C major
+@global_instrument = 0
 
+# 第一个轨道
 [track]
-@instrument=0
+# 轨道参数设置
+@instrument = 25
+@key = G minor
 
-1 1 5 5 6 6 5-
-4 4 3 3 2 2 1-
-1 1 5 5 6 6 5-
-4 4 3 3 2 2 1-
+# 音符数据
+1 "Hello" 2- "World" 3. 4_ 5 6^ 7_-
+0 "Pause" 1# 2b 3 4^ 5_ 1 "Note" 2 "Test"
+
+# 第二个轨道
+[track]
+# 轨道参数设置
+@key = D major
+@instrument = 40
+
+# 音符数据
+1- 2. 3_ 4 5^ 6- 7 "End" 0 1 2
+
+# 第三个轨道（空轨道测试）
+[track]
+# 无音符数据

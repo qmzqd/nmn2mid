@@ -1,7 +1,5 @@
-# nmn2mid_core.py
 import re
 import mido
-import re
 import argparse
 import os
 import sys
@@ -9,7 +7,7 @@ from typing import Dict, List, Tuple, Optional
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 from fractions import Fraction
 
-# 基础音高配置（扩展支持小写和全称调号）
+# 基础配置
 KEY_ROOT_TO_BASE = {
     'C': 60, 'C#': 61, 'Db': 61, 'D': 62, 'D#': 63, 'Eb': 63,
     'E': 64, 'F': 65, 'F#': 66, 'Gb': 66, 'G': 67, 'G#': 68,
@@ -17,45 +15,127 @@ KEY_ROOT_TO_BASE = {
 }
 SCALE_PATTERNS = {
     'major': [0, 2, 4, 5, 7, 9, 11],
-    'minor': [0, 2, 3, 5, 7, 8, 10]
+    'minor': [0, 2, 3, 5, 7, 8, 10],
+    'drum': []
 }
 DEFAULT_TICKS_PER_BEAT = 480
 DEFAULT_INSTRUMENT = 0
 DEFAULT_TEMPO = mido.bpm2tempo(120)
 DEFAULT_TIME_SIGNATURE = (4, 4)
-DEFAULT_KEY = ('C', 'major')
+DEFAULT_KEY = ('C', 'major', 0)
 
-def parse_key(value: str) -> Tuple[str, str]:
-    """统一解析调号格式（支持大小写和多种模式写法）"""
+def parse_key(value: str) -> Tuple[str, str, int]:
+    """解析调号（增强格式兼容性）"""
+    # 鼓组调号处理 (如C5)
+    drum_match = re.match(r'^\s*([A-Ga-g])(\d+)\s*$', value, re.IGNORECASE)
+    if drum_match:
+        root = drum_match.group(1).upper()
+        return root, 'drum', int(drum_match.group(2)) - (5 if root == 'C' else 4)
+
+    # 常规调号处理 (如C+1)
     match = re.match(
-        r'^([A-Ga-g](?:#|b)?)\s*((?:m|min|minor|maj|major)?)$',
-        value.strip(),
+        r'^\s*([A-Ga-g](?:#|b)?)\s*((?:m|min|minor|maj|major)?)\s*([+-]\d+)?\s*$',
+        value,
         re.IGNORECASE
     )
     if not match:
         raise ValueError(f"无效调号格式: {value}")
 
     root = match.group(1).upper()
-    mode_str = (match.group(2) or '').lower()
-
-    # 模式匹配
-    if mode_str in ('m', 'min', 'minor'):
-        mode = 'minor'
-    elif mode_str in ('maj', 'major', ''):
-        mode = 'major'
-    else:
-        raise ValueError(f"未知调式: {mode_str}")
+    mode = 'minor' if any(x in (match.group(2) or '').lower() for x in ['m', 'min']) else 'major'
+    octave = int(match.group(3) or 0) if match.group(3) else 0
 
     if root not in KEY_ROOT_TO_BASE:
         raise ValueError(f"无效根音: {root}")
 
-    return root, mode
+    return root, mode, octave
+
+def parse_note(note_str: str, key_root: str, key_mode: str, key_octave: int) -> Tuple[Optional[int], Fraction, Optional[str]]:
+    """解析音符（增强容错处理）"""
+    # 预处理：移除非法字符并标准化
+    note_str = re.sub(r'[|]', '', note_str).strip()  # 移除小节分隔符
+    
+    # 纯歌词处理（允许空歌词）
+    if note_str.startswith('"'):
+        end_quote = note_str.find('"', 1)
+        if end_quote == -1:
+            lyric = note_str[1:]
+        else:
+            lyric = note_str[1:end_quote]
+        return None, Fraction(1, 64), lyric.strip() or None
+    
+    # 分割歌词和音符部分
+    note_part = lyric_part = ""
+    if '"' in note_str:
+        note_part, _, lyric_part = note_str.partition('"')
+        lyric_part = lyric_part.rstrip('"')  # 移除右引号
+    else:
+        note_part = note_str
+    
+    note_part = note_part.strip()
+    lyric = lyric_part.strip() if lyric_part else None
+
+    # 休止符处理（支持0+格式）
+    if note_part.startswith('0'):
+        mods = note_part[1:].replace('0', '')  # 支持多个0
+        return None, _calculate_duration(mods), lyric
+    
+    # 鼓组处理
+    if key_mode == 'drum':
+        if not note_part:
+            raise ValueError("鼓组音符不能为空")
+        try:
+            return mido.note_name_to_number(note_part.upper()), _calculate_duration(''), lyric
+        except ValueError:
+            raise ValueError(f"无效鼓组音符: {note_part}")
+    
+    # 常规音符解析
+    match = re.match(
+        r'^([#b]?)\s*([1-7])\s*([_^]*)\s*([.-]*)$',
+        note_part
+    )
+    if not match:
+        raise ValueError(f"无效音符格式: {note_part}")
+
+    accidental, degree_str, octave_mod, duration_mod = match.groups()
+    
+    # 音高计算
+    try:
+        degree = int(degree_str)
+        if not 1 <= degree <= 7:
+            raise ValueError
+    except:
+        raise ValueError(f"音级必须为1-7: {degree_str}")
+    
+    try:
+        base_pitch = KEY_ROOT_TO_BASE[key_root] + key_octave * 12
+        semitone = SCALE_PATTERNS[key_mode][degree-1] + (1 if accidental == '#' else -1 if accidental == 'b' else 0)
+        octave = octave_mod.count('^') - octave_mod.count('_')
+        midi_pitch = base_pitch + semitone + octave * 12
+        midi_pitch = max(0, min(127, midi_pitch))  # 强制限制范围
+    except IndexError:
+        raise ValueError(f"无效音阶模式: {key_mode}")
+
+    return midi_pitch, _calculate_duration(duration_mod), lyric
+
+def _calculate_duration(mods: str) -> Fraction:
+    """时值计算（带保护机制）"""
+    dashes = min(mods.count('-'), 3)  # 最多3个连字符（全音符×8）
+    dots = min(mods.count('.'), 2)    # 最多2个附点
+    
+    duration = Fraction(1)
+    duration /= (2 ** dashes)
+    
+    for _ in range(dots):
+        duration += duration / 2
+    
+    # 确保最小单位为1/64音符
+    return max(duration, Fraction(1, 64))
 
 def parse_global_metadata(line: str, line_num: int, 
                         global_defaults: Dict, warnings: List[str]) -> None:
-    """解析全局元数据行（增强错误处理）"""
+    """解析全局元数据行"""
     try:
-        # 分离注释并去除空白
         key_part = line[1:].split('#', 1)[0].strip()
         if '=' not in key_part:
             raise ValueError("缺少等号分隔符")
@@ -75,11 +155,12 @@ def parse_global_metadata(line: str, line_num: int,
                 raise ValueError("分子分母必须是整数")
             global_defaults['time_signature'] = (int(numerator), int(denominator))
         elif key == 'key':
-            root, mode = parse_key(value)
+            root, mode, octave = parse_key(value)
             global_defaults.update({
-                'key': (root, mode),
+                'key': (root, mode, octave),
                 'key_root': root,
-                'key_mode': mode
+                'key_mode': mode,
+                'key_octave': octave
             })
         elif key == 'instrument':
             if not value.isdigit() or not 0 <= int(value) <= 127:
@@ -92,7 +173,7 @@ def parse_global_metadata(line: str, line_num: int,
 
 def parse_track_metadata(line: str, line_num: int,
                        current_track: Dict, warnings: List[str]) -> None:
-    """解析轨道元数据（复用调号解析逻辑）"""
+    """解析轨道元数据"""
     try:
         key_part = line[1:].split('#', 1)[0].strip()
         if '=' not in key_part:
@@ -106,11 +187,12 @@ def parse_track_metadata(line: str, line_num: int,
         elif key == 'time_signature':
             warnings.append(f"第{line_num}行: 轨道级拍号参数已禁用")
         elif key == 'key':
-            root, mode = parse_key(value)
+            root, mode, octave = parse_key(value)
             current_track['metadata'].update({
-                'key': (root, mode),
+                'key': (root, mode, octave),
                 'key_root': root,
-                'key_mode': mode
+                'key_mode': mode,
+                'key_octave': octave
             })
             current_track['provided']['key'] = True
         elif key == 'instrument':
@@ -124,13 +206,14 @@ def parse_track_metadata(line: str, line_num: int,
         raise ValueError(f"第{line_num}行轨道参数错误: {str(e)}")
 
 def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:
-    """解析输入内容（增加行号追踪）"""
+    """解析输入内容"""
     global_defaults = {
         'tempo': DEFAULT_TEMPO,
         'time_signature': DEFAULT_TIME_SIGNATURE,
         'key': DEFAULT_KEY,
         'key_root': DEFAULT_KEY[0],
         'key_mode': DEFAULT_KEY[1],
+        'key_octave': DEFAULT_KEY[2],
         'instrument': DEFAULT_INSTRUMENT,
         'ticks_per_beat': DEFAULT_TICKS_PER_BEAT
     }
@@ -140,7 +223,7 @@ def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:
     warnings = []
     
     for line_num, raw_line in enumerate(content.splitlines(), 1):
-        line = raw_line.split('#', 1)[0].strip()  # 保留原始行用于错误报告
+        line = raw_line.split('#', 1)[0].strip()
         if not line:
             continue
         
@@ -151,16 +234,16 @@ def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:
                         'metadata': {
                             'tempo': global_defaults['tempo'],
                             'time_signature': global_defaults['time_signature'],
-                            'key': (global_defaults['key_root'], 
-                                   global_defaults['key_mode']),
+                            'key': global_defaults['key'],
                             'key_root': global_defaults['key_root'],
                             'key_mode': global_defaults['key_mode'],
+                            'key_octave': global_defaults['key_octave'],
                             'instrument': global_defaults['instrument'],
                             'ticks_per_beat': global_defaults['ticks_per_beat']
                         },
                         'provided': {'key': False, 'instrument': False},
                         'notes': [],
-                        'source_lines': []  # 记录原始音符行
+                        'source_lines': []
                     }
                     in_global_section = False
                     tracks.append(current_track)
@@ -186,13 +269,18 @@ def parse_input(content: str) -> Tuple[Dict, List[Dict], List[str]]:
             if not track['provided'][param]:
                 desc = track['metadata'][param]
                 if param == 'key':
-                    desc = f"{desc[0]}{'小调' if desc[1] == 'minor' else '大调'}"
+                    desc = f"{desc[0]} {desc[1]}"
                 warnings.append(f"轨道 {track_idx}: 使用全局{param} ({desc})")
     
     return global_defaults, tracks, warnings
 
-def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[int], Fraction, Optional[str]]:
-    """解析音符（增强格式验证，支持歌词）"""
+def parse_note(note_str: str, key_root: str, key_mode: str, key_octave: int) -> Tuple[Optional[int], Fraction, Optional[str]]:
+    """解析音符（支持鼓组专用处理）"""
+    # 处理纯歌词的情况
+    lyric_match = re.fullmatch(r'^\s*"(.*?)"\s*$', note_str)
+    if lyric_match:
+        return None, Fraction(0), lyric_match.group(1)
+    
     # 处理休止符带歌词的情况
     if note_str.startswith('0'):
         match = re.fullmatch(r'0([.-]*)(?:\s*"(.*?)")?$', note_str)
@@ -201,18 +289,29 @@ def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[in
         mods, lyric = match.groups()
         return None, _calculate_duration(mods), lyric
     
-    # 处理常规音符带歌词的情况
+    # 鼓组专用处理
+    if key_mode == 'drum':
+        match = re.fullmatch(r'^([A-Ga-g]\d+)([.-]*)(?:\s*"(.*?)")?$', note_str, re.IGNORECASE)
+        if match:
+            note_name, duration_mod, lyric = match.groups()
+            try:
+                midi_pitch = mido.note_name_to_number(note_name.upper())
+                return midi_pitch, _calculate_duration(duration_mod), lyric
+            except ValueError:
+                raise ValueError(f"无效鼓组音符: {note_name}")
+        else:
+            raise ValueError(f"鼓组轨道需使用标准音符命名 (如C5, D#3): {note_str}")
+
+    # 常规音符处理
     match = re.fullmatch(r'^([#b]?)([1-7])([_^]*)([.-]*)(?:\s*"(.*?)")?$', note_str)
     if not match:
         raise ValueError(f"无效音符格式: {note_str}")
     
     accidental, degree_str, octave_mod, duration_mod, lyric = match.groups()
     
-    # 验证升降号
     if accidental not in ('', '#', 'b'):
         raise ValueError(f"无效的升降号: {accidental}")
     
-    # 计算音级
     try:
         degree = int(degree_str)
     except ValueError:
@@ -220,12 +319,10 @@ def parse_note(note_str: str, key_root: str, key_mode: str) -> Tuple[Optional[in
     if not 1 <= degree <= 7:
         raise ValueError(f"音级超出范围 (1-7): {degree}")
     
-    # 计算音高
-    base_pitch = KEY_ROOT_TO_BASE[key_root]
+    base_pitch = KEY_ROOT_TO_BASE[key_root] + key_octave * 12
     scale = SCALE_PATTERNS[key_mode]
     semitone = scale[degree - 1] + _accidental_offset(accidental)
     
-    # 计算八度移位
     octave = octave_mod.count('^') - octave_mod.count('_')
     midi_pitch = base_pitch + semitone + (octave * 12)
     if not 0 <= midi_pitch <= 127:
@@ -242,47 +339,42 @@ def _calculate_duration(mods: str) -> Fraction:
     dashes = mods.count('-')
     dots = mods.count('.')
     
-    # 基础时值
     duration = Fraction(1)
-    
-    # 连字符处理
     duration /= (2 ** dashes)
     
-    # 附点处理
     for _ in range(dots):
         duration += duration / 2
     
     return duration
 
 def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:
-    """生成轨道事件（带错误上下文）"""
+    """生成轨道事件"""
     events = []
     current_time = 0
     key_root = track_data['metadata']['key_root']
     key_mode = track_data['metadata']['key_mode']
+    key_octave = track_data['metadata']['key_octave']
     errors = []
     
     for note_str in track_data['notes']:
         try:
-            pitch, duration, lyric = parse_note(note_str, key_root, key_mode)
+            pitch, duration, lyric = parse_note(note_str, key_root, key_mode, key_octave)
             ticks = int(round(duration * ticks_per_beat))
             
             if ticks <= 0:
                 raise ValueError("时值过小")
                 
-            if pitch is None:  # 休止符
+            if pitch is None:  # 休止符或纯歌词
                 if lyric:
                     events.append(('lyric', lyric, current_time))
                 current_time += ticks
             else:
-                # 添加音符事件和歌词事件
                 events.append(('note_on', pitch, current_time))
                 events.append(('note_off', pitch, current_time + ticks))
                 if lyric:
                     events.append(('lyric', lyric, current_time))
                 current_time += ticks
         except Exception as e:
-            # 查找原始行号
             line_nums = [ln for ln, l in track_data['source_lines'] if note_str in l.split()]
             err_msg = f"'{note_str}'"
             if line_nums:
@@ -292,12 +384,11 @@ def create_track_events(track_data: Dict, ticks_per_beat: int) -> List[Tuple]:
     if errors:
         raise ValueError("音符错误:\n" + "\n".join(f"  • {e}" for e in errors))
     
-    # 按时间排序事件
     events.sort(key=lambda x: x[2])
     return events
 
 def create_midi(global_meta: Dict, tracks: List[Dict], output_path: str) -> None:
-    """生成MIDI文件（增强鲁棒性）"""
+    """生成MIDI文件"""
     if not tracks:
         raise ValueError("无有效轨道数据")
     
@@ -320,7 +411,6 @@ def create_midi(global_meta: Dict, tracks: List[Dict], output_path: str) -> None
             track = MidiTrack()
             mid.tracks.append(track)
             
-            # 设置乐器
             track.append(Message('program_change',
                               program=track_data['metadata']['instrument'],
                               time=0))
@@ -330,47 +420,39 @@ def create_midi(global_meta: Dict, tracks: List[Dict], output_path: str) -> None
             except ValueError as e:
                 raise ValueError(f"轨道 {track_idx} 错误:\n{str(e)}")
             
-            # 生成MIDI消息
             last_time = 0
             for event in events:
                 delta = event[2] - last_time
                 if event[0] in ('note_on', 'note_off'):
                     track.append(Message(event[0], note=event[1], velocity=64, time=delta))
                 elif event[0] == 'lyric':
-                    track.append(MetaMessage('lyrics', text=event[1], time=delta))
+                    track.append(MetaMessage('text', text=event[1], time=delta))
                 last_time = event[2]
             
-            # 轨道结束
             end_time = events[-1][2] if events else 0
             track.append(MetaMessage('end_of_track', time=max(0, end_time - last_time)))
         
-        # 保存前验证
-        if len(mid.tracks) < 2:
-            raise ValueError("无有效音乐轨道")
-            
         mid.save(output_path)
     except (IOError, OSError) as e:
         raise ValueError(f"文件保存失败: {str(e)}")
 
 def main_cli():
-    """命令行接口（增强错误处理）"""
+    """命令行接口"""
     parser = argparse.ArgumentParser(
-        description='简谱转MIDI转换器 v2.0',
+        description='简谱转MIDI转换器 v2.1',
         formatter_class=argparse.RawTextHelpFormatter,
-        epilog="""输入文件格式示例：
-@global_tempo = 120
-@global_time_signature = 4/4
-@global_key = C
+        epilog="""输入文件示例：
+@global_tempo=120
+@global_key=C
 
 [track]
-1 "Hello" 2 "World" | 5_ "Low" 0 "Pause"
+@instrument=118  # 鼓组
+@key=C5
+C5 "Kick" D5 "Snare"
 
-支持特性：
-• 多轨道支持
-• 歌词支持（使用双引号包围）
-• 复杂节奏型（附点、连音线）
-• 全调号支持（含大小调）
-• 行内注释（#符号）"""
+[track]
+@instrument=0    # 钢琴
+1 3 5 | 2 4 6"""
     )
     parser.add_argument('input', help='输入文本文件路径')
     parser.add_argument('-o', '--output', default='output.mid',
@@ -381,27 +463,23 @@ def main_cli():
     args = parser.parse_args()
     
     try:
-        # 输入验证
         if not os.path.exists(args.input):
             raise ValueError(f"输入文件不存在: {args.input}")
         if os.path.isdir(args.input):
             raise ValueError(f"输入路径是目录: {args.input}")
             
-        # 读取文件
         with open(args.input, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # 解析并生成
         global_meta, tracks, warnings = parse_input(content)
         create_midi(global_meta, tracks, args.output)
         
-        # 输出结果
         print(f"✓ 成功生成: {os.path.abspath(args.output)}")
         print(f"• 轨道数: {len(tracks)}")
         print(f"• 速度: {mido.tempo2bpm(global_meta['tempo']):.0f} BPM")
         print(f"• 拍号: {global_meta['time_signature'][0]}/{global_meta['time_signature'][1]}")
         print(f"• 调号: {global_meta['key_root']} {global_meta['key_mode']}")
-        
+
         if warnings or args.verbose:
             print("\n详细报告:")
             for warn in warnings:
